@@ -1,0 +1,28 @@
+# --- 비밀정보. 절대 커밋 금지 ---
+secrets/
+.secrets/
+*.key
+.env
+
+# --- 원본 데이터 (약 7.5GB). 공식 포털에서 각자 내려받는다 ---
+# 출처와 재현 방법은 reports/안윤지_위험예측_데이터조사.md 참고
+datasets/
+data/
+data_unified/raw/
+data_unified/reference/
+
+# --- 외부 API 응답 원문·캐시 ---
+data_unified/metadata/sewer_sensors/nominatim_geocode_cache.json
+
+# --- v2 로 대체된 구버전 산출물 ---
+data_unified/processed/sewer_risk_modeling_2022/
+
+# --- 작업 부산물 ---
+.tmp-claude-artifact/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+.DS_Store
+Thumbs.db

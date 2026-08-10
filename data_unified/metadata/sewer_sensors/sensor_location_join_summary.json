@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-08-11T02:42:39.557488+09:00",
+  "metadata_sensor_count": 35,
+  "annual_gangnam_seocho_sensor_count": 35,
+  "annual_metadata_matched_sensor_count": 35,
+  "event_measurement_rows": 214184,
+  "event_sensor_count": 32,
+  "event_location_matched_rows": 214184,
+  "event_location_match_rate": 1.0,
+  "event_coordinate_matched_rows": 207003,
+  "event_coordinate_match_rate": 0.9664727523998058,
+  "event_10min_rows": 22788,
+  "level_unit": "UNCONFIRMED",
+  "physical_fill_ratio_available": false
+}
