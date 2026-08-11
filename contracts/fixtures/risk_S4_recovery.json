@@ -1,0 +1,854 @@
+{
+  "_scenario": "S4_recovery",
+  "_why_this_moment": "회복 — 무강우, 고수위 센서 절반 이하로 감소",
+  "_note": "HIGH/MEDIUM/LOW 등급은 일부러 넣지 않았다. 등급 경계는 정책이므로 ②(의사결정)가 확률을 받아 매긴다. 계약 회의에서 확정할 항목.",
+  "_source": "2022 서울시 공개데이터 리플레이. 이 사건은 학습에서 제외된 test 사건이다.",
+  "asof": "2022-08-09T09:00:00+09:00",
+  "primary_horizon": 30,
+  "sensors": [
+    {
+      "id": "22-0001",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9962
+        },
+        "30": {
+          "high_level_p": 0.996
+        },
+        "60": {
+          "high_level_p": 0.9874
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.262,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.487743,
+        "lon": 126.985386,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0002",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.6462
+        },
+        "30": {
+          "high_level_p": 0.7402
+        },
+        "60": {
+          "high_level_p": 0.7027
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "RISE",
+      "predicted_level": 0.465,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.498143,
+        "lon": 127.023934,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0003",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.991
+        },
+        "30": {
+          "high_level_p": 0.8748
+        },
+        "60": {
+          "high_level_p": 0.7677
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.51,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.491604,
+        "lon": 127.008277,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0004",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9843
+        },
+        "30": {
+          "high_level_p": 0.9789
+        },
+        "60": {
+          "high_level_p": 0.9711
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.236,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.48102,
+        "lon": 126.982366,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0005",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9702
+        },
+        "30": {
+          "high_level_p": 0.7718
+        },
+        "60": {
+          "high_level_p": 0.7748
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.36,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.490213,
+        "lon": 126.992029,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0006",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.2389
+        },
+        "30": {
+          "high_level_p": 0.5049
+        },
+        "60": {
+          "high_level_p": 0.6557
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "RISE",
+      "predicted_level": 0.432,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.5043,
+        "lon": 127.019834,
+        "quality": "ROAD_MATCH"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0007",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9616
+        },
+        "30": {
+          "high_level_p": 0.7918
+        },
+        "60": {
+          "high_level_p": 0.7242
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.36,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.483684,
+        "lon": 127.042126,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0008",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9939
+        },
+        "30": {
+          "high_level_p": 0.9719
+        },
+        "60": {
+          "high_level_p": 0.9049
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.813,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.494467,
+        "lon": 126.986094,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0009",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0006
+        },
+        "30": {
+          "high_level_p": 0.0039
+        },
+        "60": {
+          "high_level_p": 0.0019
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.053,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.498495,
+        "lon": 127.01995,
+        "quality": "ROAD_NAME_ONLY_APPROX"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0010",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.3365
+        },
+        "30": {
+          "high_level_p": 0.3973
+        },
+        "60": {
+          "high_level_p": 0.4771
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.733,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.498235,
+        "lon": 127.026821,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0011",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0006
+        },
+        "30": {
+          "high_level_p": 0.0036
+        },
+        "60": {
+          "high_level_p": 0.005
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.053,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.496392,
+        "lon": 127.027866,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0012",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0975
+        },
+        "30": {
+          "high_level_p": 0.1079
+        },
+        "60": {
+          "high_level_p": 0.1222
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.588,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.486337,
+        "lon": 127.029252,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0013",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0003
+        },
+        "30": {
+          "high_level_p": 0.002
+        },
+        "60": {
+          "high_level_p": 0.002
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.053,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.502331,
+        "lon": 127.01433,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "22-0014",
+      "district": "서초구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9779
+        },
+        "30": {
+          "high_level_p": 0.9124
+        },
+        "60": {
+          "high_level_p": 0.7893
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.809,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.488919,
+        "lon": 126.997733,
+        "quality": "ROAD_MATCH"
+      },
+      "observed_sample_count": 8
+    },
+    {
+      "id": "23-0001",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0595
+        },
+        "30": {
+          "high_level_p": 0.1455
+        },
+        "60": {
+          "high_level_p": 0.2959
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.292,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.52735,
+        "lon": 127.028861,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0002",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0008
+        },
+        "30": {
+          "high_level_p": 0.0042
+        },
+        "60": {
+          "high_level_p": 0.0103
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.37,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.52398,
+        "lon": 127.022827,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0004",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9879
+        },
+        "30": {
+          "high_level_p": 0.6746
+        },
+        "60": {
+          "high_level_p": 0.7088
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.248,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.495467,
+        "lon": 127.063416,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0005",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0058
+        },
+        "30": {
+          "high_level_p": 0.0068
+        },
+        "60": {
+          "high_level_p": 0.0451
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.043,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.506652,
+        "lon": 127.054686,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0007",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.062
+        },
+        "30": {
+          "high_level_p": 0.2205
+        },
+        "60": {
+          "high_level_p": 0.3913
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.148,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": null,
+        "lon": null,
+        "quality": "UNMATCHED"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0008",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0197
+        },
+        "30": {
+          "high_level_p": 0.0495
+        },
+        "60": {
+          "high_level_p": 0.1003
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.731,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.52735,
+        "lon": 127.028861,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0009",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.6086
+        },
+        "30": {
+          "high_level_p": 0.1671
+        },
+        "60": {
+          "high_level_p": 0.3788
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.237,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.517912,
+        "lon": 127.024102,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0010",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0237
+        },
+        "30": {
+          "high_level_p": 0.029
+        },
+        "60": {
+          "high_level_p": 0.0644
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.248,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.517912,
+        "lon": 127.024102,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0011",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.03
+        },
+        "30": {
+          "high_level_p": 0.1577
+        },
+        "60": {
+          "high_level_p": 0.1694
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.207,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.502837,
+        "lon": 127.058863,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0012",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.0009
+        },
+        "30": {
+          "high_level_p": 0.0007
+        },
+        "60": {
+          "high_level_p": 0.0015
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.076,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.520588,
+        "lon": 127.058572,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0013",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.8852
+        },
+        "30": {
+          "high_level_p": 0.7848
+        },
+        "60": {
+          "high_level_p": 0.7102
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "RISE",
+      "predicted_level": 0.056,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.518154,
+        "lon": 127.045192,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0014",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9121
+        },
+        "30": {
+          "high_level_p": 0.7816
+        },
+        "60": {
+          "high_level_p": 0.7598
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.148,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.491395,
+        "lon": 127.072773,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0015",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.1372
+        },
+        "30": {
+          "high_level_p": 0.2359
+        },
+        "60": {
+          "high_level_p": 0.4467
+        }
+      },
+      "is_high_now": false,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.115,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.492327,
+        "lon": 127.080161,
+        "quality": "ROAD_NAME_ONLY_APPROX"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0017",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9991
+        },
+        "30": {
+          "high_level_p": 0.9977
+        },
+        "60": {
+          "high_level_p": 0.9933
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.587,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.482614,
+        "lon": 127.078203,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0018",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9838
+        },
+        "30": {
+          "high_level_p": 0.9756
+        },
+        "60": {
+          "high_level_p": 0.9564
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.156,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.483368,
+        "lon": 127.086494,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0019",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9885
+        },
+        "30": {
+          "high_level_p": 0.8897
+        },
+        "60": {
+          "high_level_p": 0.8222
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.358,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.485575,
+        "lon": 127.075833,
+        "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
+      },
+      "observed_sample_count": 10
+    },
+    {
+      "id": "23-0021",
+      "district": "강남구",
+      "horizons": {
+        "10": {
+          "high_level_p": 0.9875
+        },
+        "30": {
+          "high_level_p": 0.9131
+        },
+        "60": {
+          "high_level_p": 0.7981
+        }
+      },
+      "is_high_now": true,
+      "predicted_transition": "STABLE",
+      "predicted_level": 0.513,
+      "predicted_level_unit": "UNCONFIRMED",
+      "physical_fill_ratio": null,
+      "location": {
+        "lat": 37.484159,
+        "lon": 127.09502,
+        "quality": "EXACT_ADDRESS_CANDIDATE"
+      },
+      "observed_sample_count": 10
+    }
+  ],
+  "area_risk": {
+    "district": "강남구·서초구",
+    "score": 0.9637,
+    "basis": "센서 t+30 확률 상위 25% 평균"
+  },
+  "drivers": [
+    {
+      "feature": "rain_past_60m_mm",
+      "value": 0.25,
+      "contribution": null
+    },
+    {
+      "feature": "rain_past_30m_mm",
+      "value": 0.25,
+      "contribution": null
+    },
+    {
+      "feature": "level_delta_30m",
+      "value": -0.02,
+      "contribution": null
+    },
+    {
+      "feature": "level_last",
+      "value": 0.28,
+      "contribution": null
+    }
+  ],
+  "model": {
+    "name": "histgb",
+    "version": "v2",
+    "threshold": 0.33,
+    "threshold_basis": "val_events@fpr_0.05"
+  },
+  "data_quality": {
+    "sensors_active": 31,
+    "observed_rate": 0.548,
+    "rain_available": true
+  }
+}

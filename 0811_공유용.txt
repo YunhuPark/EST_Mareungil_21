@@ -1,0 +1,7 @@
+1차 설계안 : https://app.notion.com/p/0810-AI-3b87822feb1880719c3eccf93122a0f3?source=copy_link
+
+기존 설계안 실 데이터 검증 후 상승전이 해결, 기준선, LR, HistGB 실험 : https://app.notion.com/p/0811-AI-_-LR-HistGB-3b87822feb18807eb70cf3fe1dd1b0ea?source=copy_link
+
+위 실험 github링크 : https://github.com/ayj9665-wq/EST_05_-
+
+위를 바탕으로 한 개발 계획 수정안 : https://claude.ai/code/artifact/8d815846-534a-4c5c-a32b-cb75cfefd3f2

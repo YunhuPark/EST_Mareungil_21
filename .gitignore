@@ -10,6 +10,7 @@ datasets/
 data/
 data_unified/raw/
 data_unified/reference/
+data_unified.zip
 
 # --- 외부 API 응답 원문·캐시 ---
 data_unified/metadata/sewer_sensors/nominatim_geocode_cache.json
