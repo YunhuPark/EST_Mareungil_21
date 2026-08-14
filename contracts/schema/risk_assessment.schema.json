@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mareungil/risk_assessment@v1",
+  "title": "RiskAssessment",
+  "description": "① 위험도 예측 AI → ② 행동 의사결정. 센서별 10·30·60분 고수위 확률과 지역 위험 점수. 등급(HIGH/MEDIUM/LOW)은 여기 없다 - 등급 경계는 정책값이므로 ②가 매긴다.",
+  "type": "object",
+  "required": ["asof", "primary_horizon", "sensors", "area_risk", "model", "data_quality"],
+  "patternProperties": { "^_": {} },
+  "additionalProperties": false,
+  "properties": {
+    "asof": {
+      "type": "string",
+      "description": "이 예측이 서 있는 시각. 리플레이에서는 사건 시각이며 현재 시각이 아니다.",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+    },
+    "primary_horizon": { "type": "integer", "enum": [10, 30, 60] },
+
+    "sensors": {
+      "type": "array",
+      "description": "활성 센서 전부를 보낸다. 상위 N개로 자르면 ③이 지도에 센서를 찍을 수 없다.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "district", "horizons", "is_high_now",
+          "predicted_transition", "predicted_level_unit", "location"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "district": { "type": "string" },
+          "horizons": {
+            "type": "object",
+            "required": ["10", "30", "60"],
+            "additionalProperties": false,
+            "patternProperties": {
+              "^(10|30|60)$": {
+                "type": "object",
+                "required": ["high_level_p"],
+                "additionalProperties": false,
+                "properties": {
+                  "high_level_p": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              }
+            }
+          },
+          "is_high_now": { "type": "boolean" },
+          "predicted_transition": {
+            "type": "string",
+            "enum": ["RISE", "FALL", "STABLE"],
+            "description": "모델이 기여한 핵심 값. UI가 '주의' 단계에서 강조한다."
+          },
+          "predicted_level": { "type": ["number", "null"] },
+          "predicted_level_unit": {
+            "const": "UNCONFIRMED",
+            "description": "수위 단위 미확인. 화면에 m·cm 를 붙이지 말 것."
+          },
+          "physical_fill_ratio": {
+            "const": null,
+            "description": "관로 높이·센서 영점 미확보. '몇 % 찼다'는 산출할 수 없으므로 null 만 허용한다."
+          },
+          "location": {
+            "type": "object",
+            "required": ["lat", "lon", "quality"],
+            "additionalProperties": false,
+            "properties": {
+              "lat": { "type": ["number", "null"] },
+              "lon": { "type": ["number", "null"] },
+              "quality": {
+                "type": "string",
+                "enum": [
+                  "EXACT_ADDRESS_CANDIDATE",
+                  "ROAD_MATCH",
+                  "LANDMARK_MATCH_MANUAL_REVIEW",
+                  "ROAD_NAME_ONLY_APPROX",
+                  "UNMATCHED"
+                ],
+                "description": "공식 좌표는 0개다. LANDMARK·ROAD_NAME·UNMATCHED 등급은 ③의 도로 차단 근거로 쓰지 않고 시각화까지만."
+              }
+            }
+          },
+          "observed_sample_count": {
+            "type": ["integer", "null"],
+            "description": "해당 10분 격자에서 실제 관측된 1분 샘플 수. ②의 데이터 노후·결손 판정에 쓴다."
+          }
+        }
+      }
+    },
+
+    "area_risk": {
+      "type": "object",
+      "description": "30분 지역 위험. AI-09/AI-10 에 따라 원본 확률(risk_probability)과 팀 합의 임계값으로 만든 이진 등급(ai_risk_level)을 함께 싣는다.",
+      "required": ["district", "score", "basis"],
+      "patternProperties": { "^_": {} },
+      "additionalProperties": false,
+      "properties": {
+        "district": { "type": ["string", "null"] },
+        "score": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "DEPRECATED. risk_probability 의 예전 이름이다. 기존 RF-* 픽스처 호환을 위해 남겨두며 새 코드는 risk_probability 를 읽는다. G0 에서 픽스처 생성기를 갱신하면 required 에서 뺀다."
+        },
+        "risk_probability": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "AI-09. 0~1 원본 예측 확률. 반올림하거나 등급으로 대체하지 않는다. OPEN(TH-04): 센서 확률에서 지역 확률을 만드는 집계 규칙은 아직 검증되지 않았다 - 현재 basis 의 '상위 25% 평균'은 임시값이며 G2 확정 대상이다."
+        },
+        "ai_risk_level": {
+          "type": ["string", "null"],
+          "enum": ["LOW", "HIGH", null],
+          "description": "AI-09/AI-10. risk_probability >= model.threshold 이면 HIGH, 그 외 LOW. AI 는 최종 등급 SEVERE 를 만들 수 없으며 이 필드는 ActionDecision.service_risk_level 과 다른 축이다. OPEN(TH-04): 지역 단위 임계값은 G2 확정 대상이다. 센서 단위 0.33(TH-03)을 지역에 그대로 옮겨 쓴 근거는 아직 없다."
+        },
+        "basis": { "type": "string" }
+      }
+    },
+
+    "drivers": {
+      "type": "array",
+      "description": "UI 판단 이유의 원료. contribution 은 SHAP 미설치 구간에서 null 이며, 그때 UI 는 기여도 없이 피처 값만 문장으로 쓴다.",
+      "items": {
+        "type": "object",
+        "required": ["feature", "value", "contribution"],
+        "additionalProperties": false,
+        "properties": {
+          "feature": { "type": "string" },
+          "value": { "type": ["number", "null"] },
+          "contribution": { "type": ["number", "null"] },
+          "direction": { "type": ["string", "null"], "enum": ["up", "down", null] }
+        }
+      }
+    },
+
+    "model": {
+      "type": "object",
+      "required": ["name", "version", "threshold", "threshold_basis"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "AI-04. LOW/HIGH 구분에 실제 적용한 값. Predictor 가 임의로 하드코딩하지 않고 팀 합의 설정을 적용한다."
+        },
+        "threshold_version": {
+          "type": ["string", "null"],
+          "description": "임계값 설정 버전. 기존 RF-* 픽스처에는 없으므로 optional 로 둔다. G0 에서 픽스처 생성기를 갱신하면 required 로 올린다."
+        },
+        "threshold_basis": {
+          "type": "string",
+          "description": "임계는 val 사건에서 고정한다. test 에서 재선택하지 않는다. 목표값은 TEAM_AGREED 이며, 기존 RF-* 픽스처의 'val_events@fpr_0.05'는 모델 평가 근거를 담은 예전 값이다. G0 스키마 갱신 대상(설계서 8.1.1)."
+        }
+      }
+    },
+
+    "data_quality": {
+      "type": "object",
+      "required": ["sensors_active", "observed_rate", "rain_available"],
+      "additionalProperties": false,
+      "properties": {
+        "sensors_active": { "type": "integer", "minimum": 0 },
+        "observed_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rain_available": { "type": "boolean" },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

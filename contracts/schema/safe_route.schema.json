@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mareungil/safe_route@v1",
+  "title": "SafeRoute",
+  "description": "③ 경로 엔진 → ② 판단 엔진. 도달 대상 확정 결과와 공식 대피경로 후보 비교 결과. 이 계약은 '안전 경로'를 반환하지 않는다 - 기본값은 FALLBACK_CANDIDATE 이며 route_verified=false 다. 행동(action)과의 교차 제약은 AssessResponse 가 검사한다.",
+  "type": "object",
+  "required": [
+    "status", "route_verified", "route_target", "target",
+    "route_attempted", "no_safe_route", "limit"
+  ],
+  "patternProperties": { "^_": {} },
+  "additionalProperties": false,
+
+  "properties": {
+    "status": { "$ref": "#/$defs/route_status" },
+
+    "route_verified": {
+      "type": "boolean",
+      "description": "RT-02. 현재 기본 방식(공식 후보 상대 비교)에서는 항상 false 다. true 는 status=VERIFIED_ROUTE 에서만 가능하며 G1 그래프 채택에 성공한 경우로 한정한다."
+    },
+
+    "route_target": {
+      "oneOf": [{ "$ref": "#/$defs/route_target" }, { "type": "null" }],
+      "description": "RT-12. 어디로 가는 경로인지. MOVE 는 USER_DESTINATION, EVACUATE 는 SAFE_POINT, 그 외 행동은 null. 교차하지 않는다."
+    },
+
+    "target": {
+      "oneOf": [{ "$ref": "#/$defs/target_point" }, { "type": "null" }],
+      "description": "실제 도달 대상. MOVE 는 사용자가 고른 목적지 지점, EVACUATE 는 선택된 대피시설. 대상 단계에서 실패했거나 경로가 필요 없으면 null 일 수 있다."
+    },
+
+    "route_attempted": {
+      "type": "boolean",
+      "description": "경로 탐색을 실제로 수행했는지. 대상 단계(NO_SAFE_POINT·DESTINATION_BLOCKED)에서 끝났으면 false 다. 탐색하지 않은 상태에서 경로 유무를 단정하지 않기 위한 필드다."
+    },
+
+    "no_safe_route": {
+      "type": ["boolean", "null"],
+      "description": "RT-09b. route_attempted=true 일 때만 true 가 될 수 있다. 탐색하지 않았으면 경로 존재 여부를 단정할 수 없으므로 null 이다."
+    },
+
+    "distance_m": { "type": ["number", "null"], "minimum": 0 },
+    "eta_sec": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "표시 전용. walk_speed_mps 로 환산한 값이며 경로 선택 비용에 넣지 않는다."
+    },
+    "detour_ratio": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "최단 후보 대비 우회 비율. 프로필 우회 상한(P1 초안 1.15)과 비교한다. OPEN: 상한값은 G2 동결 대상."
+    },
+
+    "candidates": {
+      "type": "array",
+      "description": "비교한 공식 대피경로 후보. 상대 비교 결과이며 순위가 안전 보장을 뜻하지 않는다.",
+      "items": {
+        "type": "object",
+        "required": ["route_id", "label", "rank", "relative_risk"],
+        "additionalProperties": false,
+        "properties": {
+          "route_id": { "type": "string" },
+          "label": { "type": "string" },
+          "rank": { "type": "integer", "minimum": 1 },
+          "relative_risk": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "후보 사이의 상대값이다. 절대 침수 확률이 아니며 화면에 확률로 표시하지 않는다."
+          },
+          "distance_m": { "type": ["number", "null"], "minimum": 0 },
+          "excluded": { "type": "boolean" },
+          "excluded_by": {
+            "type": ["string", "null"],
+            "enum": ["OFFICIAL_CLOSURE", "CONFIRMED_FLOODING", "PROFILE_CONSTRAINT", "OUT_OF_SCOPE", null],
+            "description": "RT-11. 공식 통제 구간은 후보 비교 전에 제외한다. AI 예측 확률만으로 후보를 제외하지 않는다."
+          }
+        }
+      }
+    },
+
+    "hazards": {
+      "type": "array",
+      "description": "경로 위 위험·통제 근거. 화면의 '공식/예측/팀 기준' 라벨은 basis 에서 나온다.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "text", "basis"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["OFFICIAL_CLOSURE", "CONFIRMED_FLOODING", "PREDICTED_HIGH_LEVEL", "PROFILE_CONSTRAINT"]
+          },
+          "text": { "type": "string" },
+          "geom_ref": { "type": ["string", "null"] },
+          "basis": { "$ref": "#/$defs/basis" }
+        }
+      }
+    },
+
+    "profile_applied": {
+      "type": "array",
+      "description": "F-07. 적용된 프로필. 안전 후보 집합은 그대로이고 후보 순서만 달라진다. 프로필이 안전 임계값을 낮추지 않는다.",
+      "items": { "type": "string", "enum": ["ELDERLY", "WITH_CHILD"] },
+      "uniqueItems": true
+    },
+
+    "limit": {
+      "type": "string",
+      "description": "RT-02. 사용자에게 항상 노출하는 제한 문구. '안전 경로'·'최적 경로'·'검증된 경로' 표현을 쓰지 않는다."
+    },
+
+    "source": {
+      "type": "string",
+      "description": "fixture:official_routes_30 형태. 후보 집합의 출처."
+    }
+  },
+
+  "allOf": [
+    {
+      "$comment": "RT-09b. 탐색하지 않았으면 '안전한 경로가 없다'고 단정할 수 없다.",
+      "if": { "properties": { "no_safe_route": { "const": true } }, "required": ["no_safe_route"] },
+      "then": { "properties": { "route_attempted": { "const": true } } }
+    },
+    {
+      "$comment": "route_verified=true 는 VERIFIED_ROUTE 에서만.",
+      "if": { "properties": { "route_verified": { "const": true } }, "required": ["route_verified"] },
+      "then": { "properties": { "status": { "const": "VERIFIED_ROUTE" } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "VERIFIED_ROUTE" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "route_attempted": { "const": true },
+          "no_safe_route": { "const": false },
+          "route_target": { "$ref": "#/$defs/route_target" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "FALLBACK_CANDIDATE" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "route_attempted": { "const": true },
+          "no_safe_route": { "const": false },
+          "route_verified": { "const": false },
+          "route_target": { "$ref": "#/$defs/route_target" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "NOT_REQUIRED" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "route_attempted": { "const": false },
+          "no_safe_route": { "const": null },
+          "route_verified": { "const": false },
+          "route_target": { "const": null },
+          "target": { "const": null }
+        }
+      }
+    },
+    {
+      "$comment": "대상 단계 실패. 안전거점 탐색은 EVACUATE 에만 있으므로 route_target 은 SAFE_POINT 다.",
+      "if": { "properties": { "status": { "const": "NO_SAFE_POINT" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "route_attempted": { "const": false },
+          "no_safe_route": { "const": null },
+          "route_verified": { "const": false },
+          "route_target": { "const": "SAFE_POINT" },
+          "target": { "const": null }
+        }
+      }
+    },
+    {
+      "$comment": "대상 단계 실패. 목적지 차단은 MOVE 에만 있으므로 route_target 은 USER_DESTINATION 이다.",
+      "if": { "properties": { "status": { "const": "DESTINATION_BLOCKED" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "route_attempted": { "const": false },
+          "no_safe_route": { "const": null },
+          "route_verified": { "const": false },
+          "route_target": { "const": "USER_DESTINATION" }
+        }
+      }
+    },
+    {
+      "$comment": "경로 단계 실패. 대상까지 탐색은 했다.",
+      "if": { "properties": { "status": { "const": "NO_SAFE_ROUTE" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "route_attempted": { "const": true },
+          "no_safe_route": { "const": true },
+          "route_verified": { "const": false },
+          "route_target": { "$ref": "#/$defs/route_target" }
+        }
+      }
+    },
+    {
+      "$comment": "판단 불가. 경로 계약에서는 행동 UNAVAILABLE 과 구분해 DATA_UNAVAILABLE 을 쓴다.",
+      "if": { "properties": { "status": { "const": "DATA_UNAVAILABLE" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "route_attempted": { "const": false },
+          "no_safe_route": { "const": null },
+          "route_verified": { "const": false },
+          "route_target": { "$ref": "#/$defs/route_target" }
+        }
+      }
+    }
+  ],
+
+  "$defs": {
+    "route_status": {
+      "type": "string",
+      "enum": [
+        "VERIFIED_ROUTE",
+        "FALLBACK_CANDIDATE",
+        "NOT_REQUIRED",
+        "NO_SAFE_POINT",
+        "NO_SAFE_ROUTE",
+        "DESTINATION_BLOCKED",
+        "DATA_UNAVAILABLE"
+      ],
+      "description": "RT-09. 경로 상태에 행동 enum 인 UNAVAILABLE 을 쓰지 않는다. 실패는 대상 단계(NO_SAFE_POINT·DESTINATION_BLOCKED), 경로 단계(NO_SAFE_ROUTE), 판단 불가(DATA_UNAVAILABLE)로 나뉜다."
+    },
+    "route_target": {
+      "type": "string",
+      "enum": ["USER_DESTINATION", "SAFE_POINT"]
+    },
+    "target_point": {
+      "type": "object",
+      "required": ["kind", "id", "label", "lat", "lon"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["DESTINATION_POINT", "SHELTER"],
+          "description": "SHELTER 는 대피시설 107개 중 조건을 통과한 안전거점이다. 펌프장 61개는 후보가 아니다(RT-07)."
+        },
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "lat": { "type": "number" },
+        "lon": { "type": "number" },
+        "reason": {
+          "type": ["string", "null"],
+          "description": "F-09. 이 대상을 고른 근거. EVACUATE 에서 시설 근거와 데이터 시각을 표시하는 데 쓴다."
+        },
+        "data_asof": { "type": ["string", "null"] }
+      }
+    },
+    "basis": {
+      "type": "string",
+      "enum": ["OFFICIAL_GUIDANCE", "AI_PREDICTION", "TEAM_RULE"]
+    }
+  }
+}

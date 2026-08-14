@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mareungil/action_decision@v1",
+  "title": "ActionDecision",
+  "description": "② 행동 의사결정 → ③ 경로 후보 탐색. 행동 초안과 경로 선호. 판정 우선순위 정본은 MVP 설계서 rev.5의 10단계 목록이며 코드 분기 순서와 1:1로 맞춘다.",
+  "type": "object",
+  "required": [
+    "asof", "action", "service_risk_level", "stage", "needs_route",
+    "user_state", "reasons", "policy_version"
+  ],
+  "patternProperties": { "^_": {} },
+  "additionalProperties": false,
+  "properties": {
+    "asof": {
+      "type": "string",
+      "description": "판정이 선 시각. RiskAssessment.asof 와 같아야 한다 - validate.py 가 검사한다.",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+    },
+
+    "action": { "$ref": "#/$defs/action" },
+    "previous_action": {
+      "oneOf": [{ "$ref": "#/$defs/action" }, { "type": "null" }],
+      "description": "전환을 화면에서 설명하려면 이전 값이 필요하다."
+    },
+    "changed_at": { "type": ["string", "null"] },
+    "reason_code": {
+      "type": ["string", "null"],
+      "description": "대표 사유 1개. reasons[] 와 별도로 전환 배너에 쓴다."
+    },
+
+    "service_risk_level": {
+      "$ref": "#/$defs/service_risk_level",
+      "description": "축 1. 최종 서비스 위험 등급이며 RiskAssessment.area_risk.ai_risk_level (LOW|HIGH) 과 다른 필드다. action 과 독립이며 UI 레이아웃 분기에 쓰지 않는다."
+    },
+
+    "stage": { "const": "draft" },
+    "needs_route": {
+      "type": "boolean",
+      "description": "MOVE·EVACUATE 는 항상 true. 목적지가 필수 입력이므로 MOVE 에서 도달 대상이 비는 경우는 없다. 그 외 행동은 항상 false 이며 ③을 호출하지 않고 SafeRoute.status = NOT_REQUIRED, route_target = null, route_attempted = false 로 채운다."
+    },
+    "next_check_at": {
+      "type": ["string", "null"],
+      "description": "대기 화면이 '언제 다시 보면 되는지' 말할 수 있게."
+    },
+
+    "user_state": {
+      "type": "object",
+      "required": ["context", "trapped", "hazard_signs", "profiles", "destination"],
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "type": "string",
+          "enum": ["INDOOR", "OUTDOOR", "UNDERGROUND"],
+          "description": "UNDERGROUND 이고 hazard_signs 가 1개 이상일 때 위험도 계산 이전에 대피를 부른다 (우선순위 2). 데이터 결측·범위 밖이 이 판정을 UNAVAILABLE 로 덮지 않는다."
+        },
+        "trapped": { "type": "boolean" },
+        "hazard_signs": {
+          "type": "array",
+          "description": "F-04. 지하공간 현장 위험 징후 자기신고·복수 선택. 미선택은 [] 이며 '해당 없음'을 뜻한다. context=UNDERGROUND 일 때만 의미가 있다. 부상 입력은 MVP 에서 제공하지 않는다.",
+          "items": { "$ref": "#/$defs/hazard_sign" },
+          "uniqueItems": true
+        },
+        "profiles": {
+          "type": "array",
+          "description": "자기신고·복수 선택. 미선택은 [] 이며 '해당 없음'을 뜻한다. 위치·연령으로 추정하지 않고 저장하지 않는다.",
+          "items": { "$ref": "#/$defs/profile" },
+          "uniqueItems": true
+        },
+        "destination": {
+          "$ref": "#/$defs/destination",
+          "description": "F-19. 사용자가 원래 가려던 목적지. MOVE 의 도달 대상이며 EVACUATE 의 안전거점 선택에는 관여하지 않는다. 필수 입력이며 null 을 허용하지 않는다 - 목적지 없이는 MOVE 의 경로를 탐색할 수 없다."
+        }
+      }
+    },
+
+    "official": {
+      "type": "object",
+      "description": "픽스처 주입. severity 하한을 만들며 AI 확률이 이를 낮추지 못한다.",
+      "required": ["alerts", "closures", "evacuation_order", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "alerts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "issued_at", "cleared_at"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "type": "string" },
+              "issued_at": { "type": "string" },
+              "cleared_at": { "type": ["string", "null"] },
+              "region": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "closures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "geom_ref", "mode"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": { "type": "string", "enum": ["ROAD", "UNDERPASS", "RIVERSIDE", "SUBWAY"] },
+              "geom_ref": { "type": "string" },
+              "mode": {
+                "type": "string",
+                "enum": ["VEHICLE", "PEDESTRIAN", "BOTH"],
+                "description": "VEHICLE 은 보행 차단으로 승격하지 않는다. 위험 가중만 올리고 사유에 '차량 통제 구간'으로 표기한다."
+              },
+              "since": { "type": ["string", "null"] },
+              "until": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "evacuation_order": { "type": "boolean" },
+        "source": {
+          "type": "string",
+          "description": "fixture:official_0808 형태. 실시간 피드로 교체 가능한 형태만 유지한다."
+        }
+      }
+    },
+
+    "route_prefs": {
+      "type": ["object", "null"],
+      "description": "profile_policy.yaml 결합 결과. ③은 해석 없이 그대로 사용한다. 하드 제약=합집합 / 가중=최댓값 / 상한=최솟값 / 지평=최댓값.",
+      "additionalProperties": false,
+      "properties": {
+        "exclude_steps": { "type": "boolean" },
+        "max_slope_pct": { "type": ["number", "null"] },
+        "w_slope": { "type": "number" },
+        "detour_max": { "type": "number" },
+        "sort": { "type": "string", "enum": ["risk", "distance_m", "slope"] },
+        "horizon": { "type": "integer", "enum": [10, 30, 60] },
+        "walk_speed_mps": {
+          "type": "number",
+          "description": "소요시간 표시 전용. 경로 선택 비용에 넣지 않는다."
+        },
+        "safe_point_filter": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": { "pet_ok": { "type": "boolean" } }
+        }
+      }
+    },
+
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "description": "모든 판정은 최소 1개의 사유를 반환한다. 화면의 '공식/예측/팀 기준' 라벨은 basis 에서 나온다.",
+      "items": {
+        "type": "object",
+        "required": ["code", "text", "basis"],
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string" },
+          "text": { "type": "string" },
+          "value": { "type": ["number", "string", "null"] },
+          "threshold": { "type": ["number", "string", "null"] },
+          "basis": { "$ref": "#/$defs/basis" }
+        }
+      }
+    },
+
+    "policy_version": { "type": "string" }
+  },
+
+  "$defs": {
+    "action": {
+      "type": "string",
+      "enum": ["MOVE", "WAIT", "EVACUATE", "EMERGENCY", "UNAVAILABLE"]
+    },
+    "service_risk_level": {
+      "type": "string",
+      "enum": ["SAFE", "CAUTION", "DANGER", "SEVERE"],
+      "description": "최종 서비스 위험 등급. SEVERE 는 공식 정보 없이 도달하지 않으며 AI 가 만들 수 없다."
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["ELDERLY", "WITH_CHILD"],
+      "description": "MVP 지원 프로필. WHEELCHAIR·WITH_PET은 검증 데이터 부족으로 제외한다."
+    },
+    "hazard_sign": {
+      "type": "string",
+      "enum": ["WATER_INFLOW", "SEWER_BACKFLOW", "STAIR_INFLOW"],
+      "description": "지하공간 현장 위험 징후. 사용자가 직접 신고하며 AI 로 추론하지 않는다."
+    },
+    "destination": {
+      "type": "object",
+      "description": "경로 범위 내 지정 지점 목록에서 고른 1개 지점. RT-14 에 따라 자유 좌표·자유 텍스트 입력은 허용하지 않으므로 id 는 목록에 존재해야 한다. 저장하지 않는다.",
+      "required": ["id", "label", "lat", "lon"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "지정 지점 목록의 식별자. 목록에 없는 값은 계약 위반이다." },
+        "label": { "type": "string", "description": "화면 표시명. UI 는 이 값을 그대로 쓴다." },
+        "lat": { "type": "number" },
+        "lon": { "type": "number" }
+      }
+    },
+    "basis": {
+      "type": "string",
+      "enum": ["OFFICIAL_GUIDANCE", "AI_PREDICTION", "TEAM_RULE"],
+      "description": "TEAM_RULE 은 국내 공식 기준이 확인되지 않아 우리가 정한 규칙이라는 뜻이며 화면에도 그렇게 표기한다."
+    }
+  }
+}

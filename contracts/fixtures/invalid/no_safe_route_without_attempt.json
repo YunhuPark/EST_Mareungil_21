@@ -1,0 +1,14 @@
+{
+  "_expect_invalid": {
+    "schema": "safe_route",
+    "rule": "RT-09b",
+    "why": "route_attempted=false 인데 no_safe_route=true 다"
+  },
+  "status": "NO_SAFE_ROUTE",
+  "route_verified": false,
+  "route_target": "USER_DESTINATION",
+  "target": null,
+  "route_attempted": false,
+  "no_safe_route": true,
+  "limit": "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보"
+}

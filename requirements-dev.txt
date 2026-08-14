@@ -1,0 +1,12 @@
+# 앱 개발 의존성 (api/, services/, tests/, contracts/).
+#
+#     .\make.ps1 install
+#
+# 모델 파이프라인(pandas·scikit-learn)은 여기 없다. requirements-model.txt 를 쓴다.
+# 쓰지 않는 라이브러리는 미리 넣지 않는다 — 11시간 안에 설치 시간도 비용이다.
+
+fastapi==0.121.2
+uvicorn==0.38.0
+jsonschema==4.25.0
+pytest==8.4.2
+httpx==0.28.1

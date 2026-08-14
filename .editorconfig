@@ -1,0 +1,27 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.py]
+indent_size = 4
+max_line_length = 100
+
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+
+# Windows PowerShell 5.1 은 BOM 이 없으면 UTF-8 스크립트를 ANSI 로 읽는다.
+# 한글 주석이 깨지면서 파서 에러가 난다. BOM 을 지우지 말 것.
+[*.{ps1,psm1}]
+charset = utf-8-bom
+end_of_line = crlf
+indent_size = 4
+
+[*.{csv,parquet}]
+insert_final_newline = false
+trim_trailing_whitespace = false

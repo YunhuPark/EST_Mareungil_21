@@ -1,0 +1,28 @@
+[project]
+name = "mareungil"
+version = "0.1.0"
+description = "마른길 — 2022-08-08 강남 집중호우 재생 기반 침수 대응 MVP (교육·시연용)"
+requires-python = ">=3.11"
+
+# 의존성은 requirements-dev.txt(앱 개발) / requirements-model.txt(모델 파이프라인)로
+# 나눠 관리한다. 두 그룹을 한 환경에 억지로 합치지 않는다 — 자세한 이유는 README 참조.
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+filterwarnings = ["error::DeprecationWarning:mareungil.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["data_unified", "web"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]        # 기존 파이프라인은 sys.path 조정 후 import 한다
+"scripts/mareungil/*" = ["E402"]

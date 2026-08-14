@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mareungil/official_info@v1",
+  "title": "OfficialInfo",
+  "description": "CT-05. 공식 경보·대피 지시·도로 통제 픽스처. 위험도의 하한이며 AI 가 낮출 수 없다(F-14). 도로 통제는 행동을 직접 바꾸지 않고 경로 후보에서 해당 구간을 제외하는 데만 쓴다(RT-11).",
+  "type": "object",
+  "required": ["source", "asof", "evacuation_order", "alerts", "closures"],
+  "patternProperties": { "^_": {} },
+  "additionalProperties": false,
+
+  "properties": {
+    "source": {
+      "type": "string",
+      "description": "출처. 실시간 피드로 교체 가능한 형태만 유지한다."
+    },
+    "source_url": { "type": ["string", "null"] },
+    "asof": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
+      "description": "이 공식정보 스냅샷이 서 있는 재생 시각."
+    },
+    "verification": {
+      "type": "string",
+      "enum": ["VERIFIED_SOURCE", "DRAFT_UNVERIFIED"],
+      "description": "DRAFT_UNVERIFIED 는 아직 원출처를 확인하지 못한 초안이라는 뜻이다. 발표·화면에서 공식 확인 사실처럼 표현하지 않는다."
+    },
+
+    "evacuation_order": {
+      "type": "boolean",
+      "description": "우선순위 4. true 면 EVACUATE 를 결정하며, 내부 강우·하수 데이터 단절이 이를 UNAVAILABLE 로 덮지 않는다. 다만 범위 밖 사용자에게는 적용하지 않는다(우선순위 3이 위)."
+    },
+
+    "alerts": {
+      "type": "array",
+      "description": "공식 경보. 해제(cleared_at)만을 이유로 높은 AI 위험을 낮추지 않는다.",
+      "items": {
+        "type": "object",
+        "required": ["type", "issued_at", "cleared_at"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "issued_at": { "type": "string" },
+          "cleared_at": { "type": ["string", "null"] },
+          "region": { "type": ["string", "null"] },
+          "source": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "closures": {
+      "type": "array",
+      "description": "공식 통제. RT-11 에 따라 후보 비교 전에 해당 구간을 제외하며, 통제 자체로 행동을 EVACUATE 로 바꾸지 않는다.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "geom_ref", "mode"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "type": "string", "enum": ["ROAD", "UNDERPASS", "RIVERSIDE", "SUBWAY"] },
+          "geom_ref": { "type": "string" },
+          "label": { "type": ["string", "null"] },
+          "mode": {
+            "type": "string",
+            "enum": ["VEHICLE", "PEDESTRIAN", "BOTH"],
+            "description": "VEHICLE 은 보행 차단으로 승격하지 않는다. 위험 가중만 올리고 사유에 '차량 통제 구간'으로 표기한다."
+          },
+          "since": { "type": ["string", "null"] },
+          "until": { "type": ["string", "null"] },
+          "blocks_destination_ids": {
+            "type": "array",
+            "description": "RT-17. 이 시각 기준 이 통제로 제외되는 지정 지점 id. 목록 등재가 안전 보장이 아니며 차단 여부는 재생 시각마다 다시 판정한다. AI 예측 확률만으로는 목적지를 차단하지 않는다.",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+
+    "confirmed_flooding": {
+      "type": "array",
+      "description": "RT-17. 확인된 침수. 공식 통제와 함께 목적지 차단의 유일한 근거다. 예측 확률은 여기 넣지 않는다.",
+      "items": {
+        "type": "object",
+        "required": ["geom_ref", "observed_at"],
+        "additionalProperties": false,
+        "properties": {
+          "geom_ref": { "type": "string" },
+          "label": { "type": ["string", "null"] },
+          "observed_at": { "type": "string" },
+          "source": { "type": ["string", "null"] },
+          "blocks_destination_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  }
+}

@@ -3,6 +3,8 @@ secrets/
 .secrets/
 *.key
 .env
+.env.*
+!.env.example
 
 # --- 원본 데이터 (약 7.5GB). 공식 포털에서 각자 내려받는다 ---
 # 출처와 재현 방법은 reports/안윤지_위험예측_데이터조사.md 참고
@@ -27,3 +29,49 @@ __pycache__/
 venv/
 .DS_Store
 Thumbs.db
+
+# --- Python 도구 캐시·빌드 산출물 ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+htmlcov/
+.coverage
+.coverage.*
+
+# --- Node / 프론트엔드 ---
+node_modules/
+web/dist/
+web/coverage/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# --- 에디터 ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# --- 공유하지 않기로 한 로컬 자료 ---
+#
+# 저장소 주인 판단. 파일은 로컬에 그대로 남고 Git 에만 올라가지 않는다.
+# 공유하려면 해당 줄을 지우고 git add 하면 된다.
+#
+# 이미 추적 중인 reports/ 4개 파일은 이 규칙의 영향을 받지 않는다
+# (.gitignore 는 추적 중인 파일에 적용되지 않는다).
+reports/PoC1_PoC2_방법론_비교.md
+reports/디펜스_8월8일_테스트분할.md
+발표대본_6분_평가기준반영.md
+
+# 작성자 이름과 개인 연락처가 들어 있다. 공개 저장소에 올리지 않는다.
+# 기획서 내용 자체는 docs/ 설계 문서에 반영돼 있다.
+reports/마른길_팀빌딩_기획서_최종보관본 (1).pdf
+
+# 다이어그램 PNG 재생성 스크립트. PNG 자체는 설계 문서에 박혀 있어 포함하지만,
+# 11시간 안에 다이어그램을 다시 그릴 일이 없어 스크립트는 공유하지 않는다.
+scripts/render_*.ps1
+
+# 분단위 해상도 확장계획(MVP 범위 밖)의 수치 재생성 스크립트.
+scripts/probe_minute_resolution.py
