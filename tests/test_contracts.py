@@ -132,7 +132,7 @@ def test_공식정보_픽스처가_ActionDecision_official_에_그대로_들어�
     """O-07 회귀 방지.
 
     `official_0808.json` 의 통제·침수 항목은 `blocks_destination_ids` 로 목적지를
-    막는다(O-07). `ActionDecision.official` 이 그 필드를 모르면 김윤후가 값을 채우는
+    막는다(O-07). `ActionDecision.official` 이 그 필드를 모르면 박윤후가 값을 채우는
     순간 유진희가 못 받는다. 두 스키마의 `additionalProperties: false` 가 서로를
     거부하지 않는지 **모양이 채워진 상태로** 확인한다.
 
