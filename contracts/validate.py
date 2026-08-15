@@ -77,6 +77,12 @@ def discover() -> list[Case]:
     for path in sorted((FIXTURE_DIR / "demo").glob("*.json")):
         cases.append(Case(path, "assess_response", True, "DS 통합 데모"))
 
+    # ②판단 -> ③경로 로 넘어가는 ActionDecision. AssessResponse.decision 과 필드가
+    # 다르므로 합성 검증에 넣을 수 없고 독립 픽스처로 본다 - 넣지 않으면 이 계약을
+    # 아무도 검사하지 않는 상태가 된다.
+    for path in sorted((FIXTURE_DIR / "decision").glob("*.json")):
+        cases.append(Case(path, "action_decision", True, "ActionDecision ②→③"))
+
     # 공식정보 픽스처.
     for path in sorted((FIXTURE_DIR / "official").glob("*.json")):
         cases.append(Case(path, "official_info", True, "공식정보"))

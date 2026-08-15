@@ -1,0 +1,59 @@
+{
+  "_scenario": "DS-S1",
+  "_what": "②판단 -> ③경로 로 넘어가는 ActionDecision 계약 픽스처. AssessResponse.decision 과 필드가 다르다 - 여기엔 asof·stage·official·route_prefs 가 있고 primary_action·route_postprocess_applied 가 없다. 후자는 경로 후처리 이후에 생기는 값이다.",
+  "_stub": "decision 값 자체는 STUB 이다. 판단 엔진 미구현 구간을 손으로 채운 값이며 모델이나 정책 엔진이 만든 값이 아니다.",
+  "_official_note": "official 블록은 contracts/fixtures/official/official_0808.json 을 그대로 주입한 것이다. 그 파일이 아직 DRAFT_UNVERIFIED 이므로 여기 값도 비어 있다 - 지어내지 않았다.",
+  "asof": "2022-08-08T11:00:00+09:00",
+  "action": "MOVE",
+  "previous_action": null,
+  "changed_at": null,
+  "reason_code": "NO_TRIGGER",
+  "service_risk_level": "SAFE",
+  "stage": "draft",
+  "needs_route": true,
+  "next_check_at": "2022-08-08T11:30:00+09:00",
+  "user_state": {
+    "context": "OUTDOOR",
+    "trapped": false,
+    "hazard_signs": [],
+    "profiles": [],
+    "destination": {
+      "id": "GN-003",
+      "label": "역삼역",
+      "lat": 37.5006,
+      "lon": 127.0365
+    }
+  },
+  "official": {
+    "evacuation_order": false,
+    "alerts": [],
+    "closures": [],
+    "confirmed_flooding": [],
+    "source": "fixture:official_0808"
+  },
+  "route_prefs": null,
+  "reasons": [
+    {
+      "code": "AI_AREA_LOW",
+      "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (확률 0.1086).",
+      "value": 0.1086,
+      "threshold": 0.33,
+      "basis": "AI_PREDICTION"
+    },
+    {
+      "code": "RAIN_BELOW_THRESHOLD",
+      "text": "10분 강우와 60분 누적 강우가 모두 팀 기준값 아래입니다.",
+      "value": 0.0,
+      "threshold": "10분 5mm 또는 60분 40mm",
+      "basis": "TEAM_RULE"
+    },
+    {
+      "code": "NO_OFFICIAL_ORDER",
+      "text": "이 시각 기준 공식 대피 지시가 없습니다.",
+      "value": null,
+      "threshold": null,
+      "basis": "OFFICIAL_GUIDANCE"
+    }
+  ],
+  "policy_version": "policy-0.1.0-draft"
+}

@@ -18,6 +18,7 @@
 |---|---|---|---|---|
 | 모델 위험 스냅샷 | `RF-S1`~`RF-S4`, `RF-E1` | `risk_*.json` (이 폴더 바로 아래) | `RiskAssessment` | **실제 모델 출력** |
 | 통합 데모 | `DS-S1`~`DS-S6` | `demo/` | `AssessResponse` | risk 블록은 실제 모델 출력, decision·route 는 **STUB** |
+| ②→③ 판단 산출 | `DS-S1` | `decision/` | `ActionDecision` | **STUB** — 판단 엔진 미구현 |
 | 공식정보 | — | `official/` | `OfficialInfo` | **미채움 (DRAFT)** |
 | 거부 예제 | — | `invalid/` | 각 파일이 선언 | 통과하면 검증 실패 |
 
@@ -25,13 +26,16 @@
 
 ## `RF-*` — 모델 위험 스냅샷
 
-| 파일 | 시점 | 상황 |
-|---|---|---|
-| `risk_S1_calm.json` | 2022-08-08 11:00 | 평상 — 무강우, 고수위 0개, 경보 0개 |
-| `risk_S2_rising.json` | 2022-08-08 12:10 | **강우 상승 — 고수위 0개인데 경보 13개** |
-| `risk_S3_peak.json` | 2022-08-08 21:40 | 사건 정점 — 고수위 29개, 경보 30개 |
-| `risk_S4_recovery.json` | 2022-08-09 09:00 | 회복 — 고수위 14개로 감소 |
-| `risk_E1_no_data.json` | — | 예외. 손으로 작성한 유일한 파일 |
+| 파일 | 시점 | 상황 | 지역 위험 |
+|---|---|---|---|
+| `risk_S1_calm.json` | 2022-08-08 11:00 | 평상 — 무강우, 고수위 0개, 경보 0개 | 0.0 `LOW` |
+| `risk_S2_rising.json` | 2022-08-08 12:10 | **강우 상승 — 고수위 0개인데 경보 13개** | 0.4 `LOW` |
+| `risk_S3_peak.json` | 2022-08-08 21:40 | 사건 정점 — 고수위 29개, 경보 30개 | 1.0 `HIGH` |
+| `risk_S4_recovery.json` | 2022-08-09 09:00 | 회복 — 고수위 14개로 감소 | 0.6 `HIGH` |
+| `risk_E1_no_data.json` | — | 예외. 손으로 작성한 유일한 파일 | `null` |
+
+`경보` 열은 **전체 센서** 기준이고 `지역 위험` 은 **경로 범위 1km 안 5개** 기준이라
+분모가 다르다. 나란히 놓고 빼거나 비교하지 않는다.
 
 `_index.csv` 에 네 시점의 요약 수치가 있다.
 
@@ -82,6 +86,26 @@ UI 가 실제로 받는 `AssessResponse` 다.
 각 블록의 `_stub` 필드와 응답의 `source_kind: "FIXTURE"` 가 이 사실을 표시한다.
 **mock 을 실제 모델 결과처럼 말하지 않는다.**
 
+## `decision/` — ②판단 → ③경로
+
+`ActionDecision` 계약의 예시다. **`demo/` 의 `decision` 블록과 필드가 다르다** — 헷갈리기 쉬우니
+아래를 먼저 본다.
+
+| 필드 | `decision/` (ActionDecision) | `demo/` 의 `.decision` |
+|---|---|---|
+| `asof`·`stage` | 있음 (required) | **없음** — `clock.event_time` 이 대신한다 |
+| `official`·`route_prefs` | 있음 — ③이 소비하는 입력 | **없음** — `official` 은 응답 최상위에 따로 있다 |
+| `primary_action`·`route_postprocess_applied` | **없음** | 있음 — 경로 후처리 **이후**에 생기는 값이다 |
+
+### 이 폴더가 왜 생겼나
+
+G0 전까지 `action_decision.schema.json` 을 검증하는 픽스처가 **하나도 없었다.** 4대 계약 중
+하나가 아무도 안 보는 죽은 스키마였고, 그 결과 `official` 블록이 `official_0808.json` 을
+**받지 못하는 상태**를 아무도 눈치채지 못했다 (`blocks_destination_ids` 가 거부됐다).
+
+`tests/test_contracts.py` 의 `test_모든_계약이_적어도_하나의_픽스처로_검증된다` 가 재발을 막는다.
+**새 계약을 만들면 픽스처도 같이 만든다.**
+
 ## `official/` — 공식정보
 
 **값이 비어 있고, 그건 의도한 것이다.** 원출처를 확인하기 전에 경보 시각을 지어내지 않는다.
@@ -104,12 +128,25 @@ UI 가 실제로 받는 `AssessResponse` 다.
 
 각 파일의 `_expect_invalid` 가 대상 스키마와 사유를 선언한다.
 
+## 지역 위험은 어떻게 계산되나
+
+`area_risk` 집계 규칙(TH-04)과 `threshold_basis` 는 **G0 에서 확정됐다** (C-17 · C-19).
+집계는 `scripts/mareungil/area_risk.py` 한 곳에만 있고 `tests/test_area_risk.py` 가
+픽스처와 규칙이 어긋나지 않는지 계속 확인한다.
+
+- 지역 위험 = **경로 범위(강남역 1km) 안 센서 중 `t+30 확률 ≥ 0.33` 인 비율**
+- 그 비율이 **`0.5` 이상이면 `ai_risk_level = HIGH`**
+- 임계값만 바꿔 다시 계산하려면 `python scripts/refresh_area_risk.py --write`
+  (모델을 재학습하지 않는다 — 센서 확률은 그대로 두고 집계만 다시 만든다)
+
+> **분모가 5다.** 재생 시점에 범위 안에 존재하는 센서가 5개뿐이라 지역 위험은
+> 0 / 0.2 / 0.4 / 0.6 / 0.8 / 1.0 의 6단계로만 움직인다. 지역 임계 0.5 는 실질적으로
+> "5개 중 3개 이상"이며 **검증값이 아니라 팀 합의값**이다 (DECISIONS 3.0.2).
+
 ## 계약 회의에서 아직 정하지 못한 것
 
 - **`drivers[].contribution` 이 전부 null.** SHAP 미설치라 기여도를 지어내지 않았다. 피처 값만 실려 있다.
-- **`area_risk` 집계 규칙(TH-04).** "상위 25% 평균"은 검증된 적 없는 임시 규칙이다
-  ([DECISIONS.md](../../docs/DECISIONS.md) O-01).
-- **`threshold_basis`.** 현재 `val_events@fpr_0.05`(모델 평가 근거)이며 목표는 `TEAM_AGREED` 다 (O-14).
+- **공식정보 값**(O-11)과 **데모 시각**(O-12). `official/` 참조.
 
 ## 픽스처를 볼 때 주의
 

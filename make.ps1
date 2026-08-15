@@ -48,14 +48,15 @@ function Assert-Node {
 # 한 단계 실행하고 성패를 기록한다. 실패해도 즉시 멈추지 않고 끝까지 돌린 뒤
 # 마지막에 요약한다 - 한 번에 무엇이 깨졌는지 다 보는 편이 빠르다.
 function Invoke-Step($name, $script) {
+    # `& $script` 의 출력은 성공 스트림으로 흘러 함수 반환값에 섞인다. Out-Host 로
+    # 화면에만 보내지 않으면 반환값이 [출력 여러 줄 + $bool] 배열이 되고, PowerShell
+    # 에서 비어 있지 않은 배열은 참이라 `if ($results[$k])` 가 실패한 단계도 통과로
+    # 읽는다. 실제로 pytest 가 깨진 채 "전부 통과. 커밋해도 된다"를 출력했다.
     Write-Step $name
-    & $script
-    if ($LASTEXITCODE -ne 0) {
-        Write-Bad $name
-        return $false
-    }
-    Write-Ok $name
-    return $true
+    & $script | Out-Host
+    $ok = ($LASTEXITCODE -eq 0)
+    if ($ok) { Write-Ok $name } else { Write-Bad $name }
+    return $ok
 }
 
 switch ($Task) {

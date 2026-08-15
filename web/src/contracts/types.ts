@@ -81,7 +81,13 @@ export interface RiskAssessment {
   sensors: SensorReading[];
   area_risk: AreaRisk;
   model: { name: string; version: string; threshold: number; threshold_basis: string };
-  data_quality: { sensors_active: number; observed_rate: number; rain_available: boolean };
+  /** 데이터 품질의 정본. DQ-01~05 판정이 읽는 값이며 최상위에 복사본을 두지 않는다. */
+  data_quality: {
+    sensors_active: number;
+    observed_rate: number;
+    rain_available: boolean;
+    reason?: string | null;
+  };
 }
 
 /** F-03. 최대 3개. 각 이유에 basis 가 붙는다. */
@@ -113,6 +119,13 @@ export interface Decision {
   needs_route: boolean;
   next_check_at?: string | null;
   reason_code?: string | null;
+  /**
+   * 직전 재생 시각의 최종 행동. 행동 전환 배너용이며 없으면 배너를 띄우지 않는다.
+   * UI 가 이전 응답을 기억해 스스로 만들지 않는다 - 재생 시각을 건너뛸 수 있다.
+   */
+  previous_action?: Action | null;
+  /** 행동이 바뀐 재생 시각. previous_action 과 함께 쓴다. */
+  changed_at?: string | null;
   user_state: UserState;
   reasons: Reason[];
   policy_version: string;
@@ -180,12 +193,8 @@ export interface AssessResponse {
     closures: unknown[];
     source: string;
   };
-  data_quality?: {
-    sensors_active: number;
-    observed_rate: number;
-    rain_available: boolean;
-    reason?: string | null;
-  };
+  // 데이터 품질은 risk.data_quality 하나가 정본이다. 최상위에 복사본을 두지 않는다.
+  // 관측률·센서 수가 필요하면 response.risk.data_quality 를 읽는다.
   /** UI-07. 항상 화면에 보여야 한다. */
   notice: {
     disclaimer: string;

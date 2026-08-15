@@ -19,27 +19,34 @@ cd mareungil
 
 ## 1. 담당 배치와 병렬 경계
 
-| 코드 | 역할 | 주 작업 디렉터리 | 다른 사람이 안 건드림 |
-|---|---|---|---|
-| **A** | 계약·정책 오너 (테크리드) | `contracts/`, `tests/` | 4대 스키마, enum 3종 사본 |
-| **B** | 백엔드 · 판단 엔진 | `services/decision/`, `api/` | `api/main.py` |
-| **C** | 경로 · 공간 데이터 | `services/route/`, `contracts/destinations.json` | 지정 지점·시설·경로 후보 |
-| **D** | 프론트엔드 | `web/src/components/`, `web/src/styles.css` | 화면 컴포넌트 |
-| **E** | AI · 예측 | `scripts/`, `contracts/fixtures/risk_*.json` | 모델 파이프라인 |
+| 코드 | 이름 | 역할 | 주 작업 디렉터리 | 다른 사람이 안 건드림 |
+|---|---|---|---|---|
+| **PM** | **안려현** | 기획 · 안전정책 · 공식정보 | `contracts/fixtures/official/` | 안전정책 확정, 데모 시각 |
+| **A** | **안윤지** | 계약·정책 오너 (테크리드) | `contracts/`, `tests/` | 4대 스키마, enum 3종 사본 |
+| **B** | **유진희** | 백엔드 · 결정 엔진 | `services/decision/`, `api/` | `api/main.py` |
+| **C** | **김윤후** | 경로 엔진 · 공간 데이터 | `services/route/`, `contracts/destinations.json` | 지정 지점·시설·경로 후보 |
+| **D** | **정예지** | UI · UX | `web/src/components/`, `web/src/styles.css` | 화면 컴포넌트 |
+| **E** | **안윤지** (A 겸임) | AI · 예측 | `scripts/`, `contracts/fixtures/risk_*.json` | 모델 파이프라인 |
 
 디렉터리가 갈려 있으므로 **네 사람이 동시에 커밋해도 충돌이 나지 않는다.**
 충돌이 나는 곳은 아래뿐이고, 전부 단일 소유자가 있다.
+
+> **A 와 E 를 안윤지가 겸임한다.** 결과적으로 계약(A)과 예측(E) 사이에는 조율 비용이 없고,
+> `DECISIONS.md` 의 O-01·O-08·O-14 는 **승인 절차 없이 안윤지가 직접 닫는다.**
+> 대신 `contracts/` 와 `scripts/` 를 한 사람이 동시에 들고 있으므로,
+> **모델 쪽 편의를 위해 계약을 바꾸는 일**을 스스로 경계해야 한다. 계약이 먼저다.
 
 ### 단일 소유자 — 두 사람이 동시에 고치지 않는다
 
 | 파일 | 소유자 | 바꾸고 싶으면 |
 |---|---|---|
-| `contracts/schema/*.json` | **A** | A 에게 말한다. 직접 고치지 않는다 |
-| `services/decision/enums.py` | **A** | 〃 |
-| `web/src/contracts/enums.ts`, `types.ts` | **A** | 〃 |
-| `contracts/fixtures/official/official_0808.json` | **기획 PM** | 공식정보·데모 시각의 단일 출처 |
-| `contracts/destinations.json` | **C** | 〃 |
-| `api/main.py` | **B** | 통합 응답 조립 지점 |
+| `contracts/schema/*.json` | **A · 안윤지** | 안윤지에게 말한다. 직접 고치지 않는다 |
+| `services/decision/enums.py` | **A · 안윤지** | 〃 |
+| `web/src/contracts/enums.ts`, `types.ts` | **A · 안윤지** | 〃 |
+| `contracts/fixtures/official/official_0808.json` | **PM · 안려현** | 공식정보·데모 시각의 단일 출처 |
+| `contracts/destinations.json` | **C · 김윤후** | 〃 |
+| `api/main.py` | **B · 유진희** | 통합 응답 조립 지점 |
+| `contracts/fixtures/risk_*.json` | **E · 안윤지** | 모델 픽스처 생성기 산출물 |
 
 **계약을 바꾸면 네 곳을 같은 커밋에서 고친다** — 스키마 · 픽스처 · 테스트 · UI 타입
 (CLAUDE.md 7절). 하나라도 빠지면 통합이 깨진다.

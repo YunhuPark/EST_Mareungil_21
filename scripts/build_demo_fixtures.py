@@ -22,6 +22,7 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.stdout.reconfigure(encoding="utf-8")
 
+from mareungil import area_risk
 from mareungil import config as C
 from mareungil import evaluate as E
 from run_models import FEATURES, RANDOM_STATE, TAG, build_xy, make_models
@@ -45,8 +46,9 @@ DRIVER_FEATURES = ["rain_past_60m_mm", "rain_past_30m_mm", "level_delta_30m", "l
 
 def grade_note() -> str:
     return (
-        "HIGH/MEDIUM/LOW 등급은 일부러 넣지 않았다. 등급 경계는 정책이므로 "
-        "②(의사결정)가 확률을 받아 매긴다. 계약 회의에서 확정할 항목."
+        "area_risk.ai_risk_level 은 LOW/HIGH 두 값뿐이며 TH-04(O-01) 규칙으로 여기서 매긴다. "
+        "②(의사결정)는 이 값을 그대로 받아 쓰고 확률에 임계를 다시 적용하지 않는다. "
+        "최종 서비스 등급(SAFE/CAUTION/DANGER/SEVERE)은 별개 축이며 ②가 정한다."
     )
 
 
@@ -121,8 +123,9 @@ def main() -> None:
                 "observed_sample_count": int(row.sample_count),
             })
 
-        top = sorted((s["horizons"][str(HORIZON)]["high_level_p"] for s in sensors), reverse=True)
-        area = round(sum(top[: max(1, len(top) // 4)]) / max(1, len(top) // 4), 4)
+        # TH-04 / O-01. 집계 규칙은 scripts/mareungil/area_risk.py 한 곳에만 있다.
+        # 예전 규칙("상위 25% 평균")은 회복 국면을 못 따라가 G0 에서 교체했다.
+        area = area_risk.compute(sensors)
         first = snap.iloc[0]
 
         payload = {
@@ -133,11 +136,7 @@ def main() -> None:
             "asof": at.strftime("%Y-%m-%dT%H:%M:%S+09:00"),
             "primary_horizon": HORIZON,
             "sensors": sensors,
-            "area_risk": {
-                "district": "강남구·서초구",
-                "score": area,
-                "basis": "센서 t+30 확률 상위 25% 평균",
-            },
+            "area_risk": area,
             "drivers": [
                 {
                     "feature": f,
@@ -149,8 +148,12 @@ def main() -> None:
             "model": {
                 "name": "histgb",
                 "version": "v2",
+                # 센서 단위 임계다. 실제로 val 사건에서 튜닝해 나온 값이므로
+                # threshold_basis 는 val_events@fpr_0.05 가 정확한 표기다.
+                # TEAM_AGREED 가 붙는 것은 지역 비율 임계이며 area_risk.basis 가 싣는다 (O-14).
                 "threshold": THRESHOLD,
                 "threshold_basis": "val_events@fpr_0.05",
+                "threshold_version": f"sensor-{THRESHOLD}+area-{area_risk.AREA_THRESHOLD}",
             },
             "data_quality": {
                 "sensors_active": len(sensors),
@@ -171,7 +174,10 @@ def main() -> None:
             "RISE": n_rise, "FALL": n_fall,
             "10분강우mm": round(float(first["rain_local_mean_mm"] or 0), 2),
             "60분강우mm": round(float(first["rain_past_60m_mm"] or 0), 1),
-            "지역위험": area,
+            # 경보 열은 전체 센서 기준이고, 아래 둘은 경로 범위(강남역 1km) 기준이다.
+            # 분모가 다르므로 나란히 놓고 비교하지 않는다.
+            "지역위험": area["risk_probability"],
+            "지역등급": area["ai_risk_level"],
         })
         print(f"  -> {path.name}")
 
