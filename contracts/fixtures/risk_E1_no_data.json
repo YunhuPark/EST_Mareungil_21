@@ -1,21 +1,24 @@
 {
   "_scenario": "E1_no_data",
   "_why_this_moment": "예외 케이스 — 손으로 작성. 데이터에서 뽑은 값이 아니다",
-  "_note": "지원 범위 밖이거나 해당 시각 센서 자료가 없을 때. ②는 이 응답을 받으면 '정보 없음'으로 판정하고 추측 안내를 하지 않는다",
+  "_note": "area_risk.ai_risk_level 은 LOW/HIGH 두 값뿐이며 TH-04(O-01) 규칙으로 여기서 매긴다. ②(의사결정)는 이 값을 그대로 받아 쓰고 확률에 임계를 다시 적용하지 않는다. 최종 서비스 등급(SAFE/CAUTION/DANGER/SEVERE)은 별개 축이며 ②가 정한다.",
   "asof": "2022-08-08T12:10:00+09:00",
   "primary_horizon": 30,
   "sensors": [],
   "area_risk": {
-    "district": null,
+    "district": "강남역 반경 1000m",
     "score": null,
-    "basis": "산출 불가 — 활성 센서 없음"
+    "risk_probability": null,
+    "ai_risk_level": null,
+    "basis": "경로 범위(강남역 반경 1000m) 안에 확률을 가진 센서가 없어 지역 위험을 산출하지 않았다. 좌표 미상 센서 0개는 분모에서 제외한다."
   },
   "drivers": [],
   "model": {
     "name": "histgb",
     "version": "v2",
     "threshold": 0.33,
-    "threshold_basis": "val_events@fpr_0.05"
+    "threshold_basis": "val_events@fpr_0.05",
+    "threshold_version": "sensor-0.33+area-0.5"
   },
   "data_quality": {
     "sensors_active": 0,
