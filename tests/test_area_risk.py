@@ -118,3 +118,89 @@ def test_경로_범위는_destinations_json에서_온다():
     assert scope["lat"] == declared["scope"]["center_lat"]
     assert scope["lon"] == declared["scope"]["center_lon"]
     assert scope["radius_m"] == declared["scope"]["radius_m"]
+
+
+# ---------------------------------------------------------------------------
+# O-08. 경계 근처 진동 억제 (비대칭 확인)
+# ---------------------------------------------------------------------------
+
+
+def test_위험_진입은_즉시다():
+    """이게 이 규칙에서 가장 중요한 성질이다. 대피 경보를 늦추지 않는다."""
+    state = area_risk.step("LOW")
+    assert state.level == "LOW"
+    assert area_risk.step("HIGH", state).level == "HIGH", "HIGH 진입에 지연이 있으면 안 된다"
+
+
+def test_해제는_연속_확인을_요구한다():
+    seq = ["HIGH"] + ["LOW"] * area_risk.EXIT_DWELL_STEPS
+    out = area_risk.stabilize(seq)
+    assert out[0] == "HIGH"
+    # 마지막 한 번을 채우기 전까지는 HIGH 를 유지한다.
+    assert out[1:-1] == ["HIGH"] * (area_risk.EXIT_DWELL_STEPS - 1)
+    assert out[-1] == "LOW"
+
+
+def test_짧은_깜빡임이_사라진다():
+    """실측에서 문제가 됐던 모양 — 10분만에 LOW 로 갔다가 되돌아온 구간."""
+    raw = ["HIGH", "LOW", "HIGH"]
+    assert area_risk.stabilize(raw) == ["HIGH", "HIGH", "HIGH"]
+
+
+def test_해제_도중_HIGH가_오면_카운터가_초기화된다():
+    raw = ["HIGH", "LOW", "LOW", "HIGH", "LOW", "LOW"]
+    out = area_risk.stabilize(raw)
+    assert out == ["HIGH", "HIGH", "HIGH", "HIGH", "HIGH", "HIGH"], (
+        "중간에 HIGH 가 한 번 오면 해제 카운트를 다시 세야 한다"
+    )
+
+
+def test_충분히_길게_LOW면_결국_해제된다():
+    """끈적하기만 하고 안 내려가면 그것도 고장이다."""
+    raw = ["HIGH"] + ["LOW"] * 10
+    out = area_risk.stabilize(raw)
+    assert out[-1] == "LOW"
+    assert out.count("LOW") == 10 - area_risk.EXIT_DWELL_STEPS + 1
+
+
+def test_판단_불가는_그대로_통과한다():
+    """"모른다"를 "안전하다"로 바꾸지 않는다."""
+    out = area_risk.stabilize(["HIGH", None, None])
+    assert out == ["HIGH", None, None]
+
+
+def test_판단_불가_동안_해제_카운트가_쌓이지_않는다():
+    """데이터가 끊긴 시간을 "LOW 였다"로 세면 복구 즉시 등급이 떨어진다."""
+    after_gap = area_risk.stabilize(["HIGH", None, None, None, "LOW"])
+    assert after_gap[-1] == "HIGH", "결측 구간이 해제를 앞당기면 안 된다"
+
+
+def test_첫_스텝은_이전_상태가_없어도_동작한다():
+    assert area_risk.step("HIGH").level == "HIGH"
+    assert area_risk.step("LOW").level == "LOW"
+    assert area_risk.step(None).level is None
+
+
+def test_같은_입력이면_같은_출력이다():
+    """N-04. 전역 상태를 두지 않았는지 본다."""
+    raw = ["LOW", "HIGH", "LOW", "LOW", "HIGH", None, "LOW"]
+    assert area_risk.stabilize(raw) == area_risk.stabilize(raw)
+    mid = area_risk.DwellState(level="HIGH", pending_exit=1)
+    assert area_risk.step("LOW", mid) == area_risk.step("LOW", mid)
+
+
+def test_해제_지연이_문서와_같다():
+    assert area_risk.EXIT_DWELL_STEPS == 3
+    assert area_risk.STEP_MINUTES == 10
+
+
+def test_compute는_억제를_적용하지_않는다():
+    """집계와 억제를 분리해 둔다.
+
+    `compute()` 는 그 시각의 raw 등급만 낸다. 억제는 재생 수열을 걷는 쪽이
+    `step()` 으로 얹는다. 섞으면 `compute()` 가 순수하지 않게 된다.
+    """
+    calm = load(FIXTURES / "risk_S1_calm.json")
+    assert area_risk.compute(calm["sensors"])["ai_risk_level"] == "LOW"
+    assert "ai_risk_level" in area_risk.compute(calm["sensors"])
+    assert not hasattr(area_risk.compute(calm["sensors"]), "pending_exit")

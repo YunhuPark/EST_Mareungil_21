@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
 from pathlib import Path
 
 #: TH-03. 센서 단위 고수위 임계. val 사건에서 오경보 예산 0.05 로 튜닝한 값이며
@@ -40,6 +41,18 @@ AREA_THRESHOLD = 0.5
 
 #: 집계에 쓰는 예측 지평(분). ActionDecision 이 보는 primary_horizon 과 같다.
 HORIZON_MIN = 30
+
+#: 재생 한 스텝의 길이(분).
+STEP_MINUTES = 10
+
+#: O-08. `HIGH` -> `LOW` 로 내려갈 때만 요구하는 연속 확인 횟수. **비대칭이다.**
+#: 올라갈 때는 0 이며 즉시 전환한다 — 위험 진입을 늦추지 않는다.
+#:
+#: 3 스텝 = 30분. 2022-08-08~09 구간(288스텝)을 정답 라벨로 돌려 고른 값이다.
+#: 억제 없이는 등급이 13번 뒤집히고 그중 3번이 30분 안에 되돌아갔다(하나는 10분).
+#: 이 규칙을 넣으면 전환 7번, 30분 이내 되돌아감 0번이 된다.
+#: **검증값이 아니라 팀 합의값이다**(TEAM_AGREED). 근거는 docs/DECISIONS.md 3.3.
+EXIT_DWELL_STEPS = 3
 
 _DESTINATIONS = Path(__file__).resolve().parents[2] / "contracts" / "destinations.json"
 
@@ -138,3 +151,86 @@ def compute(sensors: list[dict], scope: dict | None = None) -> dict:
             f"좌표 미상 {no_coord}개 제외. TH-04/O-01"
         ),
     }
+
+
+@dataclass(frozen=True)
+class DwellState:
+    """진동 억제의 상태. **이전 시각의 결과를 명시적으로 들고 다닌다.**
+
+    히스테리시스는 이전 상태에 의존하므로 언뜻 N-04(재현성)와 충돌해 보이지만,
+    이전 상태를 *입력으로 받으면* 같은 입력에 항상 같은 출력이라 순수 함수다.
+    전역 변수나 파일에 상태를 두지 않는다.
+
+    Attributes:
+        level: 지금 화면이 보는 등급. `None` 은 판단 불가다.
+        pending_exit: `HIGH` 에서 내려가려고 기다린 연속 스텝 수.
+        last_known: 마지막으로 **판단이 된** 등급. `level` 과 따로 두는 이유는
+            결측 구간 때문이다. 결측 동안 `level` 은 `None` 이지만 "직전에
+            위험했다"는 사실은 남아 있어야, 데이터가 돌아왔을 때 해제 대기를
+            처음부터 다시 세지 않고 이어서 센다. 이걸 합쳐 두면 결측 한 번에
+            대기가 통째로 사라져 등급이 즉시 떨어진다.
+    """
+
+    level: str | None = None
+    pending_exit: int = 0
+    last_known: str | None = None
+
+
+def step(raw_level: str | None, state: DwellState | None = None) -> DwellState:
+    """한 스텝 진행한다. **순수 함수다.**
+
+    비대칭 규칙:
+
+    - `LOW` -> `HIGH` 는 **즉시**. 위험 진입을 늦추지 않는다.
+    - `HIGH` -> `LOW` 는 `EXIT_DWELL_STEPS` 만큼 연속으로 `LOW` 여야 한다.
+    - 판단 불가(`None`)는 **그대로 통과**시키고 대기 카운터를 건드리지 않는다.
+      "모른다"를 "안전하다"로 바꾸지 않기 위해서다. 데이터가 끊긴 동안 해제
+      카운트가 쌓여 복구되자마자 `LOW` 로 떨어지는 일도 막는다.
+
+    Args:
+        raw_level: 집계가 그대로 낸 등급 (`compute()` 의 `ai_risk_level`).
+        state: 직전 스텝의 결과. 첫 스텝이면 `None`.
+
+    Returns:
+        이번 스텝의 `DwellState`. 화면에 쓸 값은 `.level` 이다.
+    """
+    state = state or DwellState()
+
+    if raw_level is None:
+        # 판단 불가. 화면에는 그대로 "모름"을 내보내되, 직전에 위험했다는 사실과
+        # 해제 대기 횟수는 유지한다. 결측이 해제를 앞당기면 안 된다.
+        return DwellState(
+            level=None,
+            pending_exit=state.pending_exit,
+            last_known=state.last_known,
+        )
+
+    if raw_level == "HIGH":
+        return DwellState(level="HIGH", pending_exit=0, last_known="HIGH")
+
+    # raw_level == "LOW". 판단됐던 마지막 등급을 기준으로 본다 - state.level 을
+    # 보면 결측 직후에 대기가 초기화돼 즉시 LOW 로 떨어진다.
+    if state.last_known != "HIGH":
+        return DwellState(level="LOW", pending_exit=0, last_known="LOW")
+
+    pending = state.pending_exit + 1
+    if pending >= EXIT_DWELL_STEPS:
+        return DwellState(level="LOW", pending_exit=0, last_known="LOW")
+    return DwellState(level="HIGH", pending_exit=pending, last_known="HIGH")
+
+
+def stabilize(raw_levels: list[str | None]) -> list[str | None]:
+    """등급 수열 전체에 진동 억제를 적용한다.
+
+    재생 시각이 고정된 알려진 수열이므로, 어떤 시점의 등급이든 처음부터
+    훑으면 결정된다. DB 없이(D-03) 재현 가능하다.
+
+    **인접한 스텝이 `STEP_MINUTES` 간격일 때만 의미가 있다.** 몇 시간씩 떨어진
+    스냅샷에 적용하면 대기 시간이 이미 다 지나버려 아무것도 바뀌지 않는다.
+    """
+    out: list[str | None] = []
+    state = DwellState()
+    for raw in raw_levels:
+        state = step(raw, state)
+        out.append(state.level)
+    return out
