@@ -24,26 +24,30 @@
 - Node.js 20 이상 (확인 환경 v24.14.1)
 - Windows PowerShell
 
-### 1. 설치 (최초 1회)
+### 1. 설치 (최초 1회) — 이 한 줄이면 끝난다
 
 ```powershell
 git clone <저장소 주소>
 cd mareungil
-.\make.ps1 install
+.\make.ps1 setup
 ```
 
-Python 가상환경(`.venv`)과 프론트 의존성을 함께 설치한다.
+`setup` 이 세 가지를 이어서 한다.
 
-### 2. 전부 잘 되는지 확인
+1. **사전 확인** — Python 3.11 이상과 Node/npm 이 실제로 실행되는지 본다. 없으면 무엇을 설치해야 하는지 알려주고 멈춘다
+2. **설치** — Python 가상환경(`.venv`)과 프론트 의존성. 어느 한 단계라도 실패하면 즉시 멈춘다
+3. **검증** — 계약 검증 · Python 테스트 · TypeScript 검사 · 프론트 테스트 · production build
 
-```powershell
-.\make.ps1 check
-```
+**"환경 준비 완료" 가 나와야 개발을 시작한다.** 여기서 막히면 그대로 팀 시간이 빠진다.
 
-계약 검증 · Python 테스트 · TypeScript 검사 · 프론트 테스트 · production build 를 한 번에 돌린다.
-**전부 통과해야 개발을 시작한다.** 여기서 막히면 그대로 팀 시간이 빠진다.
+> `.\make.ps1` 이 실행되지 않고 *"이 시스템에서 스크립트를 실행할 수 없으므로"* 가 뜨면
+> PowerShell 실행 정책 문제다. 창을 하나 열고 아래를 한 번만 실행한다.
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+> ```
 
-### 3. 실행
+### 2. 실행
 
 창 두 개를 띄운다.
 
@@ -63,7 +67,8 @@ Python 가상환경(`.venv`)과 프론트 의존성을 함께 설치한다.
 ### 명령 전체
 
 ```powershell
-.\make.ps1 install         # Python .venv + 프론트 의존성
+.\make.ps1 setup           # clone 직후 이것 하나 (사전 확인 + 설치 + 검증)
+.\make.ps1 install         # 설치만 (검증은 따로 check)
 .\make.ps1 install-model   # 모델 파이프라인 의존성 (AI·데이터 담당만)
 
 .\make.ps1 api             # 백엔드 개발 서버

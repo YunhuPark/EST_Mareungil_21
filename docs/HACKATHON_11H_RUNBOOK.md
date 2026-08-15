@@ -9,10 +9,9 @@
 전원이 이걸 끝내고 T+0 을 시작한다. 여기서 막히면 그 시간이 11시간에서 빠진다.
 
 ```powershell
-git clone <저장소>
-cd mareungil
-.\make.ps1 install
-.\make.ps1 check       # 전부 통과해야 한다
+git clone https://github.com/ayj9665-wq/EST_Mareungil_21.git
+cd EST_Mareungil_21
+.\make.ps1 setup       # 사전 확인 + 설치 + 검증. "환경 준비 완료" 가 나와야 한다
 ```
 
 읽을 것: [CLAUDE.md](../CLAUDE.md) 4절(enum·금칙어)과 [DECISIONS.md](./DECISIONS.md) OPEN 목록.
@@ -355,7 +354,7 @@ git stash
 
 # 의존성이 꼬였다
 Remove-Item -Recurse -Force web\node_modules, .venv
-.\make.ps1 install
+.\make.ps1 setup
 ```
 
 ### F-5 — 최종 태그

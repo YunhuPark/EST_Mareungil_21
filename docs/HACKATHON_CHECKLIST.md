@@ -6,8 +6,7 @@
 
 전원 각자 확인한다.
 
-- [ ] `git clone` 후 `.\make.ps1 install` 이 끝났다
-- [ ] `.\make.ps1 check` 가 **전부 통과**한다
+- [ ] `git clone` 후 `.\make.ps1 setup` 이 **"환경 준비 완료"** 로 끝났다
 - [ ] `.\make.ps1 api` 로 백엔드가 뜨고 `http://127.0.0.1:8000/docs` 가 열린다
 - [ ] `.\make.ps1 web` 으로 화면이 뜨고 **위험·위치·행동·시각·119** 다섯 개가 보인다
 - [ ] [CLAUDE.md](../CLAUDE.md) 4절의 enum 표와 금칙어 표를 읽었다
@@ -125,7 +124,7 @@ git stash
 
 # 의존성이 꼬였다
 Remove-Item -Recurse -Force web\node_modules, .venv
-.\make.ps1 install
+.\make.ps1 setup
 
 # 픽스처를 잘못 고쳤다
 git checkout -- contracts/fixtures/

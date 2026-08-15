@@ -68,14 +68,20 @@ git push -u origin main
 초대받은 사람이 하는 일은 이게 전부다.
 
 ```powershell
-git clone https://github.com/<계정>/mareungil.git
-cd mareungil
-.\make.ps1 install     # Python .venv + 프론트 의존성
-.\make.ps1 check       # 전부 통과하면 준비 끝
+git clone https://github.com/ayj9665-wq/EST_Mareungil_21.git
+cd EST_Mareungil_21
+.\make.ps1 setup       # 사전 확인 + 설치 + 검증까지 한 번에
 ```
 
-`.\make.ps1 check` 가 통과하지 않으면 개발을 시작하지 말고 먼저 해결한다.
+`setup` 이 **"환경 준비 완료"** 를 출력하지 않으면 개발을 시작하지 말고 먼저 해결한다.
 여기서 막히는 사람이 있으면 그 시간이 11시간에서 그대로 빠진다.
+
+### 여기서 걸리는 두 가지
+
+| 증상 | 원인 | 해결 |
+|---|---|---|
+| `이 시스템에서 스크립트를 실행할 수 없으므로` | PowerShell 실행 정책 | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 한 번만 |
+| `python`·`npm` 을 찾을 수 없다고 나온다 | PATH 에 없음 | `setup` 이 무엇을 설치해야 하는지 알려준다. 설치 후 **PowerShell 창을 새로 연다** — PATH 변경은 열려 있는 창에 반영되지 않는다 |
 
 ### 데이터는 clone 에 들어 있지 않다
 

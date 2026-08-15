@@ -78,7 +78,8 @@
 Windows PowerShell 기준. 전부 저장소 루트에서 실행한다.
 
 ```powershell
-.\make.ps1 install     # Python .venv + 프론트 의존성 설치 (최초 1회)
+.\make.ps1 setup       # clone 직후 이것 하나 — 사전 확인 + 설치 + 검증
+.\make.ps1 install     # 설치만 (검증은 따로 check)
 .\make.ps1 api         # 백엔드 개발 서버  http://127.0.0.1:8000
 .\make.ps1 web         # 프론트 개발 서버  http://127.0.0.1:5173
 .\make.ps1 contracts   # 모든 계약 픽스처 검증
