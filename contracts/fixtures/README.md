@@ -18,6 +18,7 @@
 |---|---|---|---|---|
 | 모델 위험 스냅샷 | `RF-S1`~`RF-S4`, `RF-E1` | `risk_*.json` (이 폴더 바로 아래) | `RiskAssessment` | **실제 모델 출력** |
 | 통합 데모 | `DS-S1`~`DS-S6` | `demo/` | `AssessResponse` | risk 블록은 실제 모델 출력, decision·route 는 **STUB** |
+| ②→③ 판단 산출 | `DS-S1` | `decision/` | `ActionDecision` | **STUB** — 판단 엔진 미구현 |
 | 공식정보 | — | `official/` | `OfficialInfo` | **미채움 (DRAFT)** |
 | 거부 예제 | — | `invalid/` | 각 파일이 선언 | 통과하면 검증 실패 |
 
@@ -82,6 +83,26 @@ UI 가 실제로 받는 `AssessResponse` 다.
 각 블록의 `_stub` 필드와 응답의 `source_kind: "FIXTURE"` 가 이 사실을 표시한다.
 **mock 을 실제 모델 결과처럼 말하지 않는다.**
 
+## `decision/` — ②판단 → ③경로
+
+`ActionDecision` 계약의 예시다. **`demo/` 의 `decision` 블록과 필드가 다르다** — 헷갈리기 쉬우니
+아래를 먼저 본다.
+
+| 필드 | `decision/` (ActionDecision) | `demo/` 의 `.decision` |
+|---|---|---|
+| `asof`·`stage` | 있음 (required) | **없음** — `clock.event_time` 이 대신한다 |
+| `official`·`route_prefs` | 있음 — ③이 소비하는 입력 | **없음** — `official` 은 응답 최상위에 따로 있다 |
+| `primary_action`·`route_postprocess_applied` | **없음** | 있음 — 경로 후처리 **이후**에 생기는 값이다 |
+
+### 이 폴더가 왜 생겼나
+
+G0 전까지 `action_decision.schema.json` 을 검증하는 픽스처가 **하나도 없었다.** 4대 계약 중
+하나가 아무도 안 보는 죽은 스키마였고, 그 결과 `official` 블록이 `official_0808.json` 을
+**받지 못하는 상태**를 아무도 눈치채지 못했다 (`blocks_destination_ids` 가 거부됐다).
+
+`tests/test_contracts.py` 의 `test_모든_계약이_적어도_하나의_픽스처로_검증된다` 가 재발을 막는다.
+**새 계약을 만들면 픽스처도 같이 만든다.**
+
 ## `official/` — 공식정보
 
 **값이 비어 있고, 그건 의도한 것이다.** 원출처를 확인하기 전에 경보 시각을 지어내지 않는다.
@@ -107,9 +128,15 @@ UI 가 실제로 받는 `AssessResponse` 다.
 ## 계약 회의에서 아직 정하지 못한 것
 
 - **`drivers[].contribution` 이 전부 null.** SHAP 미설치라 기여도를 지어내지 않았다. 피처 값만 실려 있다.
-- **`area_risk` 집계 규칙(TH-04).** "상위 25% 평균"은 검증된 적 없는 임시 규칙이다
-  ([DECISIONS.md](../../docs/DECISIONS.md) O-01).
-- **`threshold_basis`.** 현재 `val_events@fpr_0.05`(모델 평가 근거)이며 목표는 `TEAM_AGREED` 다 (O-14).
+- **`area_risk` 집계 규칙(TH-04).** 현재 값은 `scripts/build_demo_fixtures.py:125` 의
+  "상위 25% 평균"(`len(top) // 4`, 버림)이며 **검증된 적 없는 임시 규칙**이다.
+  G0 에서 회복 국면을 못 따라간다는 것이 수치로 확인됐다 — 피크 0.9995 → 회복 0.9637, 낙폭 0.036.
+  대안과 근거는 [DECISIONS.md](../../docs/DECISIONS.md) O-01 · 3.2.1 에 있다.
+- **`threshold_basis`.** 현재 `val_events@fpr_0.05` 다. G0 검토 결과 **이 표기가 맞다** —
+  `model.threshold`(0.33)는 센서 단위 임계이고 실제로 val 사건에서 튜닝됐기 때문이다.
+  `TEAM_AGREED` 가 붙을 대상은 **지역 임계**이며 `area_risk.basis` 문자열에 싣는다 (O-14 · 3.2.6).
+
+`_index.csv` 의 `지역위험` 열은 위 임시 규칙(A)으로 계산된 값이다. **O-01 이 닫히면 이 열도 바뀐다.**
 
 ## 픽스처를 볼 때 주의
 

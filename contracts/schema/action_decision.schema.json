@@ -75,7 +75,7 @@
 
     "official": {
       "type": "object",
-      "description": "픽스처 주입. severity 하한을 만들며 AI 확률이 이를 낮추지 못한다.",
+      "description": "픽스처 주입. severity 하한을 만들며 AI 확률이 이를 낮추지 못한다. 이 블록은 official_info@v1 픽스처(official_0808.json)를 그대로 받을 수 있어야 한다 - 필드가 어긋나면 additionalProperties:false 때문에 주입이 실패한다.",
       "required": ["alerts", "closures", "evacuation_order", "source"],
       "additionalProperties": false,
       "properties": {
@@ -89,7 +89,11 @@
               "type": { "type": "string" },
               "issued_at": { "type": "string" },
               "cleared_at": { "type": ["string", "null"] },
-              "region": { "type": ["string", "null"] }
+              "region": { "type": ["string", "null"] },
+              "source": {
+                "type": ["string", "null"],
+                "description": "official_info 아이템의 원출처. 경보마다 출처가 다를 수 있어 항목 단위로 싣는다."
+              }
             }
           }
         },
@@ -102,13 +106,40 @@
             "properties": {
               "kind": { "type": "string", "enum": ["ROAD", "UNDERPASS", "RIVERSIDE", "SUBWAY"] },
               "geom_ref": { "type": "string" },
+              "label": { "type": ["string", "null"] },
               "mode": {
                 "type": "string",
                 "enum": ["VEHICLE", "PEDESTRIAN", "BOTH"],
                 "description": "VEHICLE 은 보행 차단으로 승격하지 않는다. 위험 가중만 올리고 사유에 '차량 통제 구간'으로 표기한다."
               },
               "since": { "type": ["string", "null"] },
-              "until": { "type": ["string", "null"] }
+              "until": { "type": ["string", "null"] },
+              "blocks_destination_ids": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true,
+                "description": "O-07. 이 통제가 막는 지정 지점 id 목록. 좌표 버퍼로 추정하지 않고 명시 지정만 한다(RT-05). 여기에 담긴 id 가 사용자의 목적지면 SafeRoute.status = DESTINATION_BLOCKED 이다."
+              }
+            }
+          }
+        },
+        "confirmed_flooding": {
+          "type": "array",
+          "description": "확인된 침수 지점. 공식 통제와 함께 목적지 차단 근거가 된다(O-07).",
+          "items": {
+            "type": "object",
+            "required": ["geom_ref", "observed_at"],
+            "additionalProperties": false,
+            "properties": {
+              "geom_ref": { "type": "string" },
+              "label": { "type": ["string", "null"] },
+              "observed_at": { "type": "string" },
+              "source": { "type": ["string", "null"] },
+              "blocks_destination_ids": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              }
             }
           }
         },
@@ -146,7 +177,8 @@
     "reasons": {
       "type": "array",
       "minItems": 1,
-      "description": "모든 판정은 최소 1개의 사유를 반환한다. 화면의 '공식/예측/팀 기준' 라벨은 basis 에서 나온다.",
+      "maxItems": 3,
+      "description": "모든 판정은 최소 1개의 사유를 반환한다. 화면의 '공식/예측/팀 기준' 라벨은 basis 에서 나온다. F-03 에 따라 상한은 3개이며, AssessResponse.decision.reasons 와 같은 상한을 둔다 - 여기서 4개를 만들면 API 가 무엇을 버릴지 정해야 하므로 애초에 만들지 않는다.",
       "items": {
         "type": "object",
         "required": ["code", "text", "basis"],

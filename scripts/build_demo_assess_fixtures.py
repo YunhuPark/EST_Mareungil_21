@@ -198,12 +198,8 @@ def build_ds_s1() -> dict:
             "source": "fixture:official_0808",
         },
 
-        "data_quality": {
-            "sensors_active": risk["data_quality"]["sensors_active"],
-            "observed_rate": risk["data_quality"]["observed_rate"],
-            "rain_available": risk["data_quality"]["rain_available"],
-            "reason": None,
-        },
+        # data_quality 는 최상위에 복사하지 않는다. 정본은 risk.data_quality 하나다.
+        # 두 곳에 두면 DQ-03(관측률<70% -> WAIT)이 어느 값을 읽는지 모호해진다.
 
         "notice": {
             "disclaimer": DISCLAIMER,

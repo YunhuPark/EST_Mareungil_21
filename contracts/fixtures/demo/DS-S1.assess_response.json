@@ -998,12 +998,6 @@
     "closures": [],
     "source": "fixture:official_0808"
   },
-  "data_quality": {
-    "sensors_active": 32,
-    "observed_rate": 0.562,
-    "rain_available": true,
-    "reason": null
-  },
   "notice": {
     "disclaimer": "교육·시연용입니다. 공식 재난안전 판단 도구가 아닙니다.",
     "route_limit": "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보",

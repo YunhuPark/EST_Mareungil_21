@@ -55,7 +55,7 @@
 
     "risk": {
       "type": "object",
-      "description": "RiskAssessment 본문. 전체 필드 검증은 risk_assessment@v1 이 담당한다.",
+      "description": "RiskAssessment 본문. 전체 필드 검증은 risk_assessment@v1 이 담당한다. 데이터 품질(관측률·센서 수·강우 가용성)의 정본은 risk.data_quality 하나뿐이다 - 최상위에 복사본을 두지 않는다. DQ-01~05 판정은 전부 이 값을 읽는다.",
       "required": ["asof", "primary_horizon", "sensors", "area_risk", "model", "data_quality"]
     },
 
@@ -90,6 +90,14 @@
         },
         "next_check_at": { "type": ["string", "null"] },
         "reason_code": { "type": ["string", "null"] },
+        "previous_action": {
+          "oneOf": [{ "$ref": "#/$defs/action" }, { "type": "null" }],
+          "description": "직전 재생 시각의 최종 행동. 행동 전환 배너를 만들려면 UI 가 이 값을 받아야 한다. optional 이며 없으면 배너를 띄우지 않는다. UI 가 이전 응답을 기억해 스스로 만들지 않는다 - 재생 시각을 건너뛸 수 있기 때문이다."
+        },
+        "changed_at": {
+          "type": ["string", "null"],
+          "description": "행동이 바뀐 재생 시각. previous_action 과 함께 쓴다."
+        },
         "user_state": {
           "type": "object",
           "required": ["context", "trapped", "hazard_signs", "profiles", "destination"],
@@ -152,18 +160,6 @@
         "alerts": { "type": "array", "items": { "type": "object" } },
         "closures": { "type": "array", "items": { "type": "object" } },
         "source": { "type": "string" }
-      }
-    },
-
-    "data_quality": {
-      "type": "object",
-      "required": ["sensors_active", "observed_rate", "rain_available"],
-      "additionalProperties": false,
-      "properties": {
-        "sensors_active": { "type": "integer", "minimum": 0 },
-        "observed_rate": { "type": "number", "minimum": 0, "maximum": 1 },
-        "rain_available": { "type": "boolean" },
-        "reason": { "type": ["string", "null"] }
       }
     },
 
