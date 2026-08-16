@@ -5,6 +5,14 @@
 > 대상: 2026-08-12 준비일 + 30시간 온라인 해커톤  
 > 상태: 목표 설계. 현재 저장소 구현 상태는 4절에서 별도로 표시한다.
 
+> ⚠️ **2026-08-17 주의 — 이 문서를 일정·구현 상태의 근거로 쓰지 않는다.**
+> 위 "30시간 온라인"은 **실제 일정이 아니다.** 실제는 **오프라인 13시간**(1차 3.5h ·
+> 2차 2.5h · 3차 2h · 4차 5h)이다. 8.5.4 의 "미구현" 표기도 부트스트랩 직전 상태라
+> 지금과 다르다 — UI 는 완성돼 있다.
+>
+> **현재 구현 상태의 정본은 [REPOSITORY_AUDIT.md](./REPOSITORY_AUDIT.md) 6절과 10절이다.**
+> 이 설계서는 **무엇을 만들 것인가**(목표 설계)를 읽을 때만 쓴다.
+
 ## 1. 한 문장 정의
 
 마른길은 2022년 8월 8일 강남 집중호우를 재생해, 사용자가 침수 상황에서 **지금 위험한가**와 **지금 무엇을 해야 하는가**를 한 화면에서 확인하는 모바일 웹 MVP다.
@@ -394,9 +402,9 @@ TH-04 지역 집계 규칙과 지역 단위 임계, 경계 진동 억제는 **G0
 | 데이터 파이프라인 | Python, pandas, numpy, pyarrow | `data_unified/processed/v2/*.parquet` |
 | 모델 학습·평가 | scikit-learn, `scripts/mareungil/` | 모델 아티팩트, 평가표 |
 | 계약 검증 | JSON Schema Draft 2020-12, `jsonschema` | `contracts/schema/*.json`, `contracts/fixtures/*.json` |
-| 판단 엔진 ② | `services/decision/` | `ActionDecision` — **미구현** |
-| 경로 엔진 ③ | `services/route/` | `SafeRoute` — **미구현** |
-| UI ④ | Vite + React + Leaflet, `web/` | 모바일 단일 화면 — **미구현** |
+| 판단 엔진 ② | `services/decision/` | `ActionDecision` — **부분 구현.** 등급 판정 `classify()`·경로 후처리 `apply()`·공식정보 필터 `visible_at()` 는 있고 테스트 53건이 붙어 있다. **행동 우선순위 1~10 본체는 없다.** 셋 다 아직 API 가 호출하지 않는다 |
+| 경로 엔진 ③ | `services/route/` | `SafeRoute` — **인터페이스 + STUB.** 후보를 비교하지 않는다 |
+| UI ④ | Vite + React + Leaflet, `web/` | 모바일 단일 화면 — **구현됨.** 5요소 상시 노출·지도 실패 fallback·프론트 테스트 25건 |
 | 문서·다이어그램 | Graphviz(`dot`), `scripts/render_*.ps1` | `docs/diagrams/*.png` |
 
 파이프라인 공통 설정은 `scripts/mareungil/config.py`에 모아 둔다. 이 파일의 값은 데이터 계약이므로 바꾸면 데이터셋을 다시 만들어야 한다.
