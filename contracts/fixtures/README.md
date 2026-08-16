@@ -72,8 +72,24 @@ UI 가 실제로 받는 `AssessResponse` 다.
 | `DS-S4` | `trapped=true` | `EMERGENCY` | 미작성 |
 | `DS-S5` | `MOVE` + 후보 전부 제외 | `NO_SAFE_ROUTE` → 최종 `WAIT` | 미작성 |
 | `DS-S6` | `MOVE` + 목적지가 통제 구간 | `DESTINATION_BLOCKED` | 미작성 |
+| `DS-S7` | `EVACUATE` + 1순위 시설 만석 | 2순위로 전환, `EVACUATE` 유지 | **있음** (M-32) |
+| `DS-S8` | `EVACUATE` + 후보 0개 | `NO_SAFE_POINT`, `EVACUATE` 유지 + 119 강조 | **있음** (M-32) |
 
 미작성분은 T+6:00~8:00 구간 작업이다. 생성기의 `BUILDERS` 에 함수를 추가한다.
+
+### `DS-S7`·`DS-S8` — 시설 상태는 전부 합성값이다
+
+M-32 가 "1순위 만석 → 2순위 전환 → 후보 0개 → `NO_SAFE_POINT`" 흐름을 고정 픽스처로
+시연하기로 정해서 만들었다. **저장소에 수해대피소 원자료가 없으므로 시설 id·이름·좌표와
+운영 상태는 전부 지어낸 값**이며, 라벨에 "합성 대피시설 … 실제 시설 아님"으로 적었다(M-24).
+`risk` 블록만 `RF-S3`(실제 모델 출력)이다.
+
+두 파일은 **같은 재생 시각(21:40)의 두 갈래**다. 시간이 흐르며 시설이 닫히는 시계열
+데이터가 없으므로 순서가 아니라 상태 차이로 보여준다. 발표에서 "시간이 지나 닫혔다"고
+말하지 않는다.
+
+두 파일이 함께 증명하는 것은 **행동이 바뀌지 않는다**는 것이다(M-15). 갈 곳이 하나도
+없어도 `action` 은 `EVACUATE` 이고, `EMERGENCY` 로도 `WAIT` 으로도 가지 않는다.
 
 ### `DS-S1` 에서 진짜와 STUB 의 경계
 
@@ -125,6 +141,10 @@ G0 전까지 `action_decision.schema.json` 을 검증하는 픽스처가 **하�
 | `destination_null.json` | F-19 / R13 — 목적지는 필수 |
 | `ambiguous_risk_level.json` | AI-10 — 이름만 `risk_level` 인 필드 금지 |
 | `profile_wheelchair.json` | X1 / C-14 — MVP 제외 프로필 |
+| `severe_without_direct_signal.json` | C-23 — AI 예측만으로 `SEVERE` 에 올라갈 수 없다 |
+| `evacuate_route_failure_escalated.json` | M-15 / C-31 — 경로 실패를 `EMERGENCY` 로 승격 금지 |
+| `move_destination_blocked_switched_to_wait.json` | M-16 — 목적지 차단과 안전경로 없음은 다른 상태다 |
+| `expired_without_stale.json` | M-08 — 신선도 10분·30분은 포함 관계다 |
 
 각 파일의 `_expect_invalid` 가 대상 스키마와 사유를 선언한다.
 

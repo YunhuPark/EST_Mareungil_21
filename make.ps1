@@ -26,6 +26,7 @@ $Root = $PSScriptRoot
 $Venv = Join-Path $Root '.venv'
 $Py = Join-Path $Venv 'Scripts\python.exe'
 $WebDir = Join-Path $Root 'web'
+$LogDir = Join-Path $Root 'logs'
 
 function Write-Step($text) { Write-Host "`n=== $text ===" -ForegroundColor Cyan }
 function Write-Ok($text) { Write-Host "  OK  $text" -ForegroundColor Green }
@@ -117,35 +118,79 @@ function Invoke-Install {
     Write-Ok '프론트 의존성 설치 완료'
 }
 
+# OPS-02. 창을 닫으면 traceback 이 사라져서, 무엇이 서버를 죽였는지 나중에 확인할
+# 방법이 없었다. 화면에는 그대로 보여주면서 logs/ 에도 남긴다. logs/ 는 .gitignore
+# 로 제외된다 - 요청 경로에 목적지 id 가 실리므로 커밋하지 않는다.
+function New-LogFile($name) {
+    if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
+    $log = Join-Path $LogDir "$name.log"
+    # 덮어쓰지 않고 이어 붙인다. 덮어쓰면 "죽어서 다시 띄웠다" 는 순간 원인이 지워진다.
+    Add-Content -Path $log -Value "`n===== $name  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') =====" -Encoding utf8
+    return $log
+}
+
+# 네이티브 프로세스의 출력을 파일로 남기려면 세 가지가 전부 필요하다. 하나라도 빠지면
+# 조용히 쓸모없어진다.
+#   2>&1        uvicorn·pytest 는 진단 출력을 stderr 로 낸다. 이게 없으면 정작
+#               필요한 traceback 만 파일에서 빠진다
+#   'Continue'  PowerShell 5.1 은 $ErrorActionPreference='Stop' 에서 네이티브
+#               stderr 를 NativeCommandError 로 승격해 스크립트를 죽인다. uvicorn 은
+#               시작 로그부터 stderr 라 첫 줄에서 바로 끝나 버린다
+#   Add-Content -Encoding utf8
+#               Tee-Object 는 5.1 에 -Encoding 이 없고 기본 인코딩이 환경마다 다르다
+#               (UTF-8 인 곳도 UTF-16 인 곳도 있다). 다섯 명이 같은 파일을 읽어야 하므로
+#               인코딩을 고정한다. 줄마다 즉시 디스크에 쓰므로 Ctrl+C 나 급사에도 남는다
+#
+# ForEach-Object 블록은 아무것도 내보내지 않는다. 여기서 값이 새면 Invoke-Step 의
+# 반환값이 다시 배열이 되어 C-16 이 되풀이된다.
+function Invoke-Tee($script, $log) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $script 2>&1 | ForEach-Object {
+            $line = "$_"
+            Write-Host $line
+            Add-Content -Path $log -Value $line -Encoding utf8
+        }
+    }
+    finally { $ErrorActionPreference = $prev }
+}
+
 # 한 단계 실행하고 성패를 기록한다. 실패해도 즉시 멈추지 않고 끝까지 돌린 뒤
 # 마지막에 요약한다 - 한 번에 무엇이 깨졌는지 다 보는 편이 빠르다.
-function Invoke-Step($name, $script) {
-    # `& $script` 의 출력은 성공 스트림으로 흘러 함수 반환값에 섞인다. Out-Host 로
-    # 화면에만 보내지 않으면 반환값이 [출력 여러 줄 + $bool] 배열이 되고, PowerShell
-    # 에서 비어 있지 않은 배열은 참이라 `if ($results[$k])` 가 실패한 단계도 통과로
-    # 읽는다. 실제로 pytest 가 깨진 채 "전부 통과. 커밋해도 된다"를 출력했다.
+function Invoke-Step($name, $script, $log) {
+    # `& $script` 의 출력은 성공 스트림으로 흘러 함수 반환값에 섞인다. 화면·파일로만
+    # 보내지 않으면 반환값이 [출력 여러 줄 + $bool] 배열이 되고, PowerShell 에서
+    # 비어 있지 않은 배열은 참이라 `if ($results[$k])` 가 실패한 단계도 통과로
+    # 읽는다. 실제로 pytest 가 깨진 채 "전부 통과. 커밋해도 된다"를 출력했다(C-16).
     Write-Step $name
-    & $script | Out-Host
+    Add-Content -Path $log -Value "`n--- $name ---" -Encoding utf8
+    Invoke-Tee $script $log
     $ok = ($LASTEXITCODE -eq 0)
     if ($ok) { Write-Ok $name } else { Write-Bad $name }
+    Add-Content -Path $log -Value $(if ($ok) { "OK   $name" } else { "FAIL $name" }) -Encoding utf8
     return $ok
 }
 
 # 실패 건수를 돌려준다. 안에서 쓰는 Write-Step/Ok/Bad 는 전부 Write-Host 라
 # 성공 스트림에 섞이지 않는다 - Invoke-Step 주석의 함정을 여기서 되풀이하지 않는다.
 function Invoke-Check {
+    $log = New-LogFile 'check'
     $results = [ordered]@{}
-    $results['계약 검증'] = Invoke-Step '계약 검증' { Push-Location $Root; try { & $Py -m contracts.validate } finally { Pop-Location } }
-    $results['Python 테스트'] = Invoke-Step 'Python 테스트' { Push-Location $Root; try { & $Py -m pytest } finally { Pop-Location } }
-    $results['TypeScript 검사'] = Invoke-Step 'TypeScript 검사' { Push-Location $WebDir; try { npm run typecheck } finally { Pop-Location } }
-    $results['프론트 테스트'] = Invoke-Step '프론트 테스트' { Push-Location $WebDir; try { npm run test } finally { Pop-Location } }
-    $results['프론트 빌드'] = Invoke-Step '프론트 빌드' { Push-Location $WebDir; try { npm run build } finally { Pop-Location } }
+    $results['계약 검증'] = Invoke-Step '계약 검증' { Push-Location $Root; try { & $Py -m contracts.validate } finally { Pop-Location } } $log
+    $results['Python 테스트'] = Invoke-Step 'Python 테스트' { Push-Location $Root; try { & $Py -m pytest } finally { Pop-Location } } $log
+    $results['TypeScript 검사'] = Invoke-Step 'TypeScript 검사' { Push-Location $WebDir; try { npm run typecheck } finally { Pop-Location } } $log
+    $results['프론트 테스트'] = Invoke-Step '프론트 테스트' { Push-Location $WebDir; try { npm run test } finally { Pop-Location } } $log
+    $results['프론트 빌드'] = Invoke-Step '프론트 빌드' { Push-Location $WebDir; try { npm run build } finally { Pop-Location } } $log
 
     Write-Step '요약'
+    Add-Content -Path $log -Value "`n--- 요약 ---" -Encoding utf8
     $failed = 0
     foreach ($k in $results.Keys) {
-        if ($results[$k]) { Write-Ok $k } else { Write-Bad $k; $failed++ }
+        if ($results[$k]) { Write-Ok $k; Add-Content -Path $log -Value "OK   $k" -Encoding utf8 }
+        else { Write-Bad $k; $failed++; Add-Content -Path $log -Value "FAIL $k" -Encoding utf8 }
     }
+    Write-Host "  로그: $log" -ForegroundColor DarkGray
     return $failed
 }
 
@@ -188,9 +233,12 @@ switch ($Task) {
         $apiHost = $env:MAREUNGIL_API_HOST; if (-not $apiHost) { $apiHost = '127.0.0.1' }
         $apiPort = $env:MAREUNGIL_API_PORT; if (-not $apiPort) { $apiPort = '8000' }
         Write-Host "  http://${apiHost}:${apiPort}/docs" -ForegroundColor Yellow
-        Push-Location $Root
-        try { & $Py -m uvicorn api.main:app --reload --host $apiHost --port $apiPort }
-        finally { Pop-Location }
+        # OPS-02. api/main.py 는 픽스처를 import 시점에 읽는다. 픽스처가 깨지면 요청할
+        # 때가 아니라 서버가 아예 안 뜨고, 그 traceback 이 이 창에만 있었다.
+        $log = New-LogFile 'api'
+        Write-Host "  로그: $log" -ForegroundColor DarkGray
+        # -u : 출력이 파이프로 가면 파이썬이 버퍼링해서 로그가 뭉텅이로 늦게 나온다.
+        Invoke-Tee { Push-Location $Root; try { & $Py -u -m uvicorn api.main:app --reload --host $apiHost --port $apiPort } finally { Pop-Location } } $log
     }
 
     'web' {
@@ -273,6 +321,9 @@ switch ($Task) {
   .\make.ps1 build           프론트 production build
 
   .\make.ps1 check           위 검증 전부 (커밋·PR 전에 이것만 통과하면 된다)
+
+  api 와 check 는 화면에 보이는 것을 logs\api.log · logs\check.log 에도 남긴다.
+  창을 닫은 뒤에도 무엇이 죽였는지 볼 수 있다. logs\ 는 커밋되지 않는다.
 '@
     }
 }

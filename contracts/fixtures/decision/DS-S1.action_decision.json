@@ -2,7 +2,8 @@
   "_scenario": "DS-S1",
   "_what": "②판단 -> ③경로 로 넘어가는 ActionDecision 계약 픽스처. AssessResponse.decision 과 필드가 다르다 - 여기엔 asof·stage·official·route_prefs 가 있고 primary_action·route_postprocess_applied 가 없다. 후자는 경로 후처리 이후에 생기는 값이다.",
   "_stub": "decision 값 자체는 STUB 이다. 판단 엔진 미구현 구간을 손으로 채운 값이며 모델이나 정책 엔진이 만든 값이 아니다.",
-  "_official_note": "official 블록은 contracts/fixtures/official/official_0808.json 을 그대로 주입한 것이다. 그 파일이 아직 DRAFT_UNVERIFIED 이므로 여기 값도 비어 있다 - 지어내지 않았다.",
+  "_official_note": "official 블록은 contracts/fixtures/official/official_0808.json 을 그대로 주입한 것이다(작성 주석 _* 만 제외). 그 파일이 아직 DRAFT_UNVERIFIED 이므로 여기 값도 비어 있다 - 지어내지 않았다. 이 파일은 생성기가 없어 손으로 관리하므로, official_0808.json 이 채워지면 여기도 함께 고친다.",
+  "_th04_note": "AI_AREA_LOW 의 value/threshold 는 지역 축이다. 지역값은 area_risk.compute() 가 낸 비율(RF-S1 은 0/5 = 0.0)이고 임계는 AREA_THRESHOLD(0.5)다. 센서 임계 model.threshold(0.33)를 여기 쓰지 않는다 - 축이 어긋난다(C-17/C-20).",
   "asof": "2022-08-08T11:00:00+09:00",
   "action": "MOVE",
   "previous_action": null,
@@ -29,15 +30,18 @@
     "alerts": [],
     "closures": [],
     "confirmed_flooding": [],
+    "asof": "2022-08-08T20:00:00+09:00",
+    "verification": "DRAFT_UNVERIFIED",
+    "source_url": null,
     "source": "fixture:official_0808"
   },
   "route_prefs": null,
   "reasons": [
     {
       "code": "AI_AREA_LOW",
-      "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (확률 0.1086).",
-      "value": 0.1086,
-      "threshold": 0.33,
+      "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 0.0).",
+      "value": 0.0,
+      "threshold": 0.5,
       "basis": "AI_PREDICTION"
     },
     {

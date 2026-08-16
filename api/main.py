@@ -70,9 +70,19 @@ def health() -> dict:
     }
 
 
+#: 계획된 DS 시나리오 전체. 여기서 실제 로드된 것을 빼면 `pending` 이다.
+#: 목록을 손으로 두 번 적으면 픽스처를 추가해도 "아직 없음"이 남는다.
+PLANNED_SCENARIOS = ["DS-S1", "DS-S2", "DS-S3", "DS-S4", "DS-S5", "DS-S6", "DS-S7", "DS-S8"]
+
+
 @app.get("/api/scenarios")
 def scenarios() -> dict:
-    """고를 수 있는 재생 시나리오. DS-S2~S6 는 아직 없다."""
+    """M-18. 수동 재판단이 고를 수 있는 재생 시각.
+
+    자동 감지·자동 재탐색은 MVP 범위 밖이므로 여기서 시각을 바꾸는 것이
+    재판단의 유일한 방법이다. 아직 만들지 않은 시나리오는 `pending` 으로
+    구분해 돌려준다 — 없는 것을 있는 척하지 않는다.
+    """
     return {
         "scenarios": [
             {
@@ -84,7 +94,7 @@ def scenarios() -> dict:
             }
             for sid, body in sorted(_scenarios.items())
         ],
-        "pending": ["DS-S2", "DS-S3", "DS-S4", "DS-S5", "DS-S6"],
+        "pending": [sid for sid in PLANNED_SCENARIOS if sid not in _scenarios],
     }
 
 

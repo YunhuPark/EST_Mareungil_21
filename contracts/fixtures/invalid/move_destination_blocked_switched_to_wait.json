@@ -51,8 +51,8 @@
   "decision": {
     "_stub": "우선순위 10(그 외) 기본값. services/decision 구현 전 손으로 적은 값이다.",
     "primary_action": "MOVE",
-    "action": "MOVE",
-    "route_postprocess_applied": false,
+    "action": "WAIT",
+    "route_postprocess_applied": true,
     "service_risk_level": "SAFE",
     "needs_route": true,
     "next_check_at": "2022-08-08T11:30:00+09:00",
@@ -62,7 +62,12 @@
       "trapped": false,
       "hazard_signs": [],
       "profiles": [],
-      "destination": null
+      "destination": {
+        "id": "GN-003",
+        "label": "역삼역",
+        "lat": 37.5006,
+        "lon": 127.0365
+      }
     },
     "reasons": [
       {
@@ -91,20 +96,12 @@
   },
   "route": {
     "_stub": "services/route 미구현. 후보 비교 결과가 아니라 형식을 보여주는 자리표시자다.",
-    "status": "FALLBACK_CANDIDATE",
+    "status": "DESTINATION_BLOCKED",
     "route_verified": false,
     "route_target": "USER_DESTINATION",
-    "target": {
-      "kind": "DESTINATION_POINT",
-      "id": "GN-003",
-      "label": "역삼역",
-      "lat": 37.5006,
-      "lon": 127.0365,
-      "reason": "사용자가 고른 목적지",
-      "data_asof": "2022-08-08T11:00:00+09:00"
-    },
-    "route_attempted": true,
-    "no_safe_route": false,
+    "target": null,
+    "route_attempted": false,
+    "no_safe_route": null,
     "distance_m": 840,
     "eta_sec": 720,
     "detour_ratio": 1.0,
@@ -167,7 +164,7 @@
   },
   "_expect_invalid": {
     "schema": "assess_response",
-    "rule": "R13 / F-19",
-    "why": "user_state.destination 이 null 이다"
+    "rule": "M-16",
+    "why": "목적지 차단을 안전경로 없음과 같이 취급해 WAIT 으로 바꿨다. DESTINATION_BLOCKED 는 MOVE 를 유지하고 목적지 재선택을 안내한다"
   }
 }

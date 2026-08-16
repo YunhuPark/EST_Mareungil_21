@@ -8,9 +8,9 @@
     "forecast_issued_at": "2022-08-08T11:00:00+09:00",
     "forecast_target_at": "2022-08-08T11:30:00+09:00",
     "last_update_at": "2022-08-08T11:00:00+09:00",
-    "data_age_sec": 0,
+    "data_age_sec": 2400,
     "stale": false,
-    "expired": false,
+    "expired": true,
     "label": "2022-08-08 11:00 재생"
   },
   "location": {
@@ -62,7 +62,12 @@
       "trapped": false,
       "hazard_signs": [],
       "profiles": [],
-      "destination": null
+      "destination": {
+        "id": "GN-003",
+        "label": "역삼역",
+        "lat": 37.5006,
+        "lon": 127.0365
+      }
     },
     "reasons": [
       {
@@ -167,7 +172,7 @@
   },
   "_expect_invalid": {
     "schema": "assess_response",
-    "rule": "R13 / F-19",
-    "why": "user_state.destination 이 null 이다"
+    "rule": "M-08",
+    "why": "expired=true 인데 stale=false 다. 화면이 '지연 아님'과 '근거 제외'를 동시에 말하게 된다"
   }
 }

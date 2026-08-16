@@ -24,7 +24,15 @@
   목적지를 차단하지 않는다(RT-17).
 - 펌프장 61개는 대피시설 후보가 아니다(RT-07).
 - 프로필은 이미 안전하다고 판정된 후보의 **순서만** 바꾼다. 안전 임계값을 낮추지 않는다.
-- `services/decision` 을 import 하지 않는다.
+- 프로필 수치는 **확정값**이다 — 우회 상한 1.15, 경사 가중 1.5(M-37). 다만 근거
+  데이터로 튜닝한 값이 아니라 팀 합의값이므로 검증값처럼 말하지 않는다.
+- 동점 후보의 정렬 기준을 고정해 **같은 입력·같은 버전이면 같은 결과**가 나오게 한다.
+  행동 전환 규칙은 여기서 추가하지 않는다(M-39).
+- **`services/decision` 에서 import 할 수 있는 것은 `enums` 하나뿐이다.**
+  `Action`·`RouteStatus`·`RouteTarget`·`Profile` 의 Python 정본이 거기 있기 때문이며
+  (CLAUDE.md 4절), 그 예외는 CLAUDE.md 10절에 적혀 있다. `postprocess`·`service_risk`·
+  `official` 은 여전히 금지다 — 막으려는 것은 **정책 판정이 두 방향으로 흐르는 것**이지
+  값 이름을 공유하는 것이 아니다.
 """
 
 from services.route.fixture_provider import FixtureRouteProvider

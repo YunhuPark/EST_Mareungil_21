@@ -21,8 +21,8 @@
     },
     "verification": {
       "type": "string",
-      "enum": ["VERIFIED_SOURCE", "DRAFT_UNVERIFIED"],
-      "description": "DRAFT_UNVERIFIED 는 아직 원출처를 확인하지 못한 초안이라는 뜻이다. 발표·화면에서 공식 확인 사실처럼 표현하지 않는다."
+      "enum": ["VERIFIED_SOURCE", "DRAFT_UNVERIFIED", "DEMO_FIXTURE"],
+      "description": "DRAFT_UNVERIFIED 는 아직 원출처를 확인하지 못한 초안이고, DEMO_FIXTURE 는 시연을 위해 만든 값이라 실제 정보가 아니라는 뜻이다(M-24·M-36). 셋 다 화면에 그대로 구분해 표시하며 VERIFIED_SOURCE 가 아닌 것을 공식 확인 사실처럼 표현하지 않는다."
     },
 
     "evacuation_order": {
@@ -35,12 +35,16 @@
       "description": "공식 경보. 해제(cleared_at)만을 이유로 높은 AI 위험을 낮추지 않는다.",
       "items": {
         "type": "object",
-        "required": ["type", "issued_at", "cleared_at"],
+        "required": ["type", "issued_at", "cleared_at", "available_time"],
         "additionalProperties": false,
         "properties": {
           "type": { "type": "string" },
-          "issued_at": { "type": "string" },
+          "issued_at": {
+            "type": "string",
+            "description": "M-36 event_time. 실제 발령시각이다."
+          },
           "cleared_at": { "type": ["string", "null"] },
+          "available_time": { "$ref": "#/$defs/available_time" },
           "region": { "type": ["string", "null"] },
           "source": { "type": ["string", "null"] }
         }
@@ -52,18 +56,22 @@
       "description": "공식 통제. RT-11 에 따라 후보 비교 전에 해당 구간을 제외하며, 통제 자체로 행동을 EVACUATE 로 바꾸지 않는다.",
       "items": {
         "type": "object",
-        "required": ["kind", "geom_ref", "mode"],
+        "required": ["kind", "geom_ref", "mode", "available_time"],
         "additionalProperties": false,
         "properties": {
           "kind": { "type": "string", "enum": ["ROAD", "UNDERPASS", "RIVERSIDE", "SUBWAY"] },
           "geom_ref": { "type": "string" },
           "label": { "type": ["string", "null"] },
+          "available_time": { "$ref": "#/$defs/available_time" },
           "mode": {
             "type": "string",
             "enum": ["VEHICLE", "PEDESTRIAN", "BOTH"],
             "description": "VEHICLE 은 보행 차단으로 승격하지 않는다. 위험 가중만 올리고 사유에 '차량 통제 구간'으로 표기한다."
           },
-          "since": { "type": ["string", "null"] },
+          "since": {
+            "type": ["string", "null"],
+            "description": "M-36 event_time. 통제가 실제로 시작된 시각이다."
+          },
           "until": { "type": ["string", "null"] },
           "blocks_destination_ids": {
             "type": "array",
@@ -80,12 +88,16 @@
       "description": "RT-17. 확인된 침수. 공식 통제와 함께 목적지 차단의 유일한 근거다. 예측 확률은 여기 넣지 않는다.",
       "items": {
         "type": "object",
-        "required": ["geom_ref", "observed_at"],
+        "required": ["geom_ref", "observed_at", "available_time"],
         "additionalProperties": false,
         "properties": {
           "geom_ref": { "type": "string" },
           "label": { "type": ["string", "null"] },
-          "observed_at": { "type": "string" },
+          "observed_at": {
+            "type": "string",
+            "description": "M-36 event_time. 침수가 실제로 관측된 시각이다."
+          },
+          "available_time": { "$ref": "#/$defs/available_time" },
           "source": { "type": ["string", "null"] },
           "blocks_destination_ids": {
             "type": "array",
@@ -94,6 +106,13 @@
           }
         }
       }
+    }
+  },
+
+  "$defs": {
+    "available_time": {
+      "type": ["string", "null"],
+      "description": "M-36. 이 정보가 시스템 또는 시민에게 **공개된** 시각이다. 실제 발생·관측시각(event_time 계열: alerts.issued_at · closures.since · confirmed_flooding.observed_at)과 구분한다. 재생 시각보다 available_time 이 빠르거나 같은 정보만 AI·결정·경로 판단에 쓰며, 이후에 공개된 정보를 미리 쓰지 않는다 - 2022년 당시 사용자가 알 수 없었던 것을 알았던 것처럼 보이게 하지 않기 위해서다. **required 이지만 null 을 허용한다**: 공개시각을 확인할 수 없으면 지어내지 않고 null 로 두며, 그때 이 항목은 판단 근거로 쓰이지 않는다. 필드 자체를 빼지 않는 이유는 '확인하지 않았다'와 '해당 없음'을 구분하기 위해서다."
     }
   }
 }

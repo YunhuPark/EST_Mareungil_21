@@ -9,7 +9,8 @@
 3. [저장소 감사](./REPOSITORY_AUDIT.md) — **구현됨 / STUB / 없음** 구분
 4. [체크리스트](./HACKATHON_CHECKLIST.md) — 게이트별·데모 직전·장애 복구
 
-그리고 [GitHub 저장소 만들기와 5인 공유](./GITHUB_SETUP.md).
+그리고 [운영 담당과 장애 대응](./OPERATIONS.md) — 모듈별 운영자·정상 확인 방법·오류 로그·복구 순서.
+[GitHub 저장소 만들기와 5인 공유](./GITHUB_SETUP.md).
 
 작업 규칙은 저장소 루트의 [CLAUDE.md](../CLAUDE.md) 에 있다.
 

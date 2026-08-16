@@ -63,6 +63,10 @@ def test_거부_예제가_요구된_조합을_모두_덮는다():
         "no_safe_route_without_attempt",    # no_safe_route=true & route_attempted=false
         "destination_null",                 # 목적지 null
         "ambiguous_risk_level",             # 모호한 risk_level
+        "severe_without_direct_signal",     # C-23. AI 만으로 SEVERE
+        # 회의 확정(M-15·M-16)으로 '유지'가 규칙이 됐으므로 유지에서 벗어나는 것을 막는다.
+        "evacuate_route_failure_escalated",  # M-15. 경로 실패 -> EMERGENCY 승격
+        "move_destination_blocked_switched_to_wait",  # M-16. 목적지 차단 -> WAIT
     ]:
         assert name in covered, f"거부 예제 {name} 이 없다"
 
@@ -128,13 +132,48 @@ def test_모든_계약이_적어도_하나의_픽스처로_검증된다():
     )
 
 
-def test_공식정보_픽스처가_ActionDecision_official_에_그대로_들어간다(validators):
+def test_공식정보_픽스처_파일이_두_소비자에_그대로_들어간다(validators):
+    """C-21. 실제 파일을 **손대지 않고** 주입한다.
+
+    이 테스트의 예전 형태가 C-21 을 놓친 이유가 여기 있다. 아래
+    `test_공식정보_모양이_ActionDecision_official_에_들어간다` 는 손으로 만든
+    `shaped` 에서 `asof`·`verification` 을 **빼고** 넣었고, 그래서 "정제한
+    부분집합이 통과한다"를 "픽스처를 그대로 받는다"로 읽고 있었다.
+
+    `official_info` 는 `asof` 를 required 로 둔다. 따라서 규격에 맞는 공식정보
+    문서는 **언제나** 그 필드를 갖고 있고, 소비자가 그것을 모르면 어떤 정상
+    픽스처도 주입할 수 없다. 실제로 두 소비자 모두 거부하고 있었다.
+    """
+    official = json.loads(
+        (FIXTURE_DIR / "official" / "official_0808.json").read_text(encoding="utf-8")
+    )
+    assert list(validators["official_info"].iter_errors(official)) == [], (
+        "official_0808.json 이 자기 스키마부터 통과하지 못한다"
+    )
+
+    for schema_name, base_rel in [
+        ("action_decision", ("decision", "DS-S1.action_decision.json")),
+        ("assess_response", ("demo", "DS-S1.assess_response.json")),
+    ]:
+        base = json.loads((FIXTURE_DIR.joinpath(*base_rel)).read_text(encoding="utf-8"))
+        errors = list(validators[schema_name].iter_errors({**base, "official": official}))
+        assert errors == [], (
+            f"official_0808.json 을 {schema_name}.official 에 그대로 넣을 수 없다: "
+            + "; ".join(
+                f"{'/'.join(str(p) for p in e.absolute_path) or '<root>'}: {e.message}"
+                for e in errors
+            )
+        )
+
+
+def test_공식정보_모양이_ActionDecision_official_에_들어간다(validators):
     """O-07 회귀 방지.
 
     `official_0808.json` 의 통제·침수 항목은 `blocks_destination_ids` 로 목적지를
     막는다(O-07). `ActionDecision.official` 이 그 필드를 모르면 김윤후가 값을 채우는
-    순간 유진희가 못 받는다. 두 스키마의 `additionalProperties: false` 가 서로를
-    거부하지 않는지 **모양이 채워진 상태로** 확인한다.
+    순간 유진희가 못 받는다. 위 테스트가 파일을 그대로 검사한다면 이 테스트는
+    **값이 채워진 뒤의 모양**을 미리 검사한다 - 현재 파일은 배열이 전부 비어 있어
+    항목 단위 필드가 실제로 통과하는지 알 수 없기 때문이다.
 
     여기 쓰는 값은 계약 모양을 확인하려고 지어낸 합성값이며 2022-08-08 의 사실이
     아니다. 실제 값은 `official_0808.json` 에만 들어가고 원출처 확인 전까지 비어 있다.
@@ -142,11 +181,14 @@ def test_공식정보_픽스처가_ActionDecision_official_에_그대로_들어�
     shaped = {
         "evacuation_order": True,
         "source": "fixture:shape_probe",
+        # M-36. 발생·관측시각(issued_at·since·observed_at)과 공개시각(available_time)을
+        # 나눠 싣는다. 두 값이 같은 항목만 만들면 필터가 무엇을 거르는지 확인되지 않는다.
         "alerts": [
             {
                 "type": "SYNTHETIC_ALERT",
                 "issued_at": "2022-08-08T20:00:00+09:00",
                 "cleared_at": None,
+                "available_time": "2022-08-08T20:05:00+09:00",
                 "region": "합성값",
                 "source": "합성값 - 원출처 아님",
             }
@@ -159,6 +201,7 @@ def test_공식정보_픽스처가_ActionDecision_official_에_그대로_들어�
                 "mode": "BOTH",
                 "since": "2022-08-08T20:00:00+09:00",
                 "until": None,
+                "available_time": None,
                 "blocks_destination_ids": ["GN-001"],
             }
         ],
@@ -167,22 +210,30 @@ def test_공식정보_픽스처가_ActionDecision_official_에_그대로_들어�
                 "geom_ref": "SYNTHETIC-F-001",
                 "label": "합성값 - 실제 침수 지점 아님",
                 "observed_at": "2022-08-08T20:10:00+09:00",
+                "available_time": "2022-08-08T20:20:00+09:00",
                 "source": "합성값 - 원출처 아님",
                 "blocks_destination_ids": ["GN-002"],
             }
         ],
     }
 
-    official_errors = list(validators["official_info"].iter_errors({
-        **shaped, "asof": "2022-08-08T20:00:00+09:00", "verification": "DRAFT_UNVERIFIED",
-    }))
+    # C-21. asof·verification 을 뺀 채로 소비자에 넣지 않는다. 여기서 빼면
+    # "정제하면 통과한다"만 증명하게 되고, 그것이 정확히 C-21 을 숨긴 방식이다.
+    shaped = {**shaped, "asof": "2022-08-08T20:00:00+09:00", "verification": "DRAFT_UNVERIFIED"}
+
+    official_errors = list(validators["official_info"].iter_errors(shaped))
     assert official_errors == [], f"official_info 가 자기 모양을 거부한다: {official_errors}"
 
-    base = json.loads(
-        (FIXTURE_DIR / "decision" / "DS-S1.action_decision.json").read_text(encoding="utf-8")
-    )
-    errors = list(validators["action_decision"].iter_errors({**base, "official": shaped}))
-    assert errors == [], (
-        "official_info 픽스처를 ActionDecision.official 에 넣을 수 없다: "
-        + "; ".join(f"{'/'.join(str(p) for p in e.absolute_path)}: {e.message}" for e in errors)
-    )
+    for schema_name, base_rel in [
+        ("action_decision", ("decision", "DS-S1.action_decision.json")),
+        ("assess_response", ("demo", "DS-S1.assess_response.json")),
+    ]:
+        base = json.loads(FIXTURE_DIR.joinpath(*base_rel).read_text(encoding="utf-8"))
+        errors = list(validators[schema_name].iter_errors({**base, "official": shaped}))
+        assert errors == [], (
+            f"값이 채워진 공식정보를 {schema_name}.official 에 넣을 수 없다: "
+            + "; ".join(
+                f"{'/'.join(str(p) for p in e.absolute_path) or '<root>'}: {e.message}"
+                for e in errors
+            )
+        )

@@ -16,6 +16,10 @@
 | `destination_null.json` | `assess_response` | F-19 · R13 |
 | `ambiguous_risk_level.json` | `assess_response` | AI-10 · 설계서 6.1 |
 | `profile_wheelchair.json` | `assess_response` | X1 · C-14 |
+| `severe_without_direct_signal.json` | `assess_response` | C-23 (AI 만으로 `SEVERE` 불가) |
+| `evacuate_route_failure_escalated.json` | `assess_response` | M-15 · C-31 (경로 실패로 `EMERGENCY` 승격 금지) |
+| `move_destination_blocked_switched_to_wait.json` | `assess_response` | M-16 (목적지 차단 ≠ 안전경로 없음) |
+| `expired_without_stale.json` | `assess_response` | M-08 (신선도 10분·30분은 포함 관계) |
 
 ## 형식
 

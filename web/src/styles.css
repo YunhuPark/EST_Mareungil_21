@@ -150,6 +150,33 @@ body {
   font-weight: 600;
 }
 
+/* M-08. 네 시각. 접어두되 지우지 않는다 — 화면이 좁아도 확인할 수 있어야 한다. */
+.top__times {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+}
+
+.top__times summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+.top__meta--times {
+  flex-wrap: wrap;
+  gap: 0.75rem 1.1rem;
+}
+
+.top__meta--times dd {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.top__times-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
 /* --- 본문 ---------------------------------------------------------------- */
 
 .content {
@@ -315,6 +342,47 @@ body {
   font-weight: 600;
 }
 
+/* --- 수동 재판단 (M-18) --------------------------------------------------- */
+
+.reassess__hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.reassess__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reassess__button {
+  min-height: 44px;
+  padding: 0 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.reassess__button--current,
+.reassess__button:disabled {
+  color: var(--ink-soft);
+  border-style: dashed;
+}
+
+.reassess__pending {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
 /* --- 경로 (RT-02) -------------------------------------------------------- */
 
 .route--failed {
@@ -367,6 +435,30 @@ body {
   margin: 0.5rem 0 0;
   padding-left: 1.1rem;
   font-size: 0.85rem;
+}
+
+/* M-23. 시설이 안전을 보장하지 않는다는 표시. 흐리게 두지 않는다. */
+.route__shelter-note {
+  font-weight: 700;
+  color: var(--caution);
+}
+
+.route__target-reason {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+/* M-32. 어떤 후보가 왜 빠졌는지. 실패했을 때도 남긴다. */
+.route__excluded {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.route__excluded li {
+  text-decoration: line-through;
 }
 
 .route__limit {
@@ -480,6 +572,20 @@ body {
 .emergency--urgent .emergency__call {
   min-height: 68px;
   font-size: 1.35rem;
+}
+
+/* M-15. EVACUATE 인데 갈 곳이 없을 때. urgent 와 다른 단계이며 크기를 키우지
+   않는다 - 행동은 여전히 대피이고 레이아웃까지 119 로 바꾸면 그 사실이 지워진다. */
+.emergency--emphasis {
+  border-top-color: var(--caution);
+}
+
+.emergency__emphasis {
+  grid-column: 1 / -1;
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--caution);
 }
 
 .emergency__note {

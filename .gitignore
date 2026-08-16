@@ -20,6 +20,10 @@ data_unified/metadata/sewer_sensors/nominatim_geocode_cache.json
 # --- v2 로 대체된 구버전 산출물 ---
 data_unified/processed/sewer_risk_modeling_2022/
 
+# --- 실행 로그 (OPS-02) ---
+# make.ps1 api / check 가 남긴다. 요청 경로에 목적지 id 가 실리므로 커밋하지 않는다.
+logs/
+
 # --- 작업 부산물 ---
 .tmp-claude-artifact/
 __pycache__/

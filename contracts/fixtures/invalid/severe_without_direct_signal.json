@@ -1,0 +1,143 @@
+{
+  "_what": "C-23 거부 예제. AI 예측만으로 SEVERE 에 올라가려는 응답이다.",
+  "_why_it_must_fail": "SEVERE 는 '즉각적인 안전 대응이 필요한 직접 신호'가 있을 때만 가능하다 - 공식 대피 지시 / 고립 신고 / 지하 + 현장 위험 징후. 여기에는 셋 다 없고 ai_risk_level=HIGH 와 강우만 있다. AI 는 SEVERE 를 만들 수 없다(F-02). 이 조합의 올바른 등급은 DANGER 다.",
+  "_note_sensors": "sensors 를 비워둔 것은 이 픽스처가 SEVERE 가지 하나만 시험하기 때문이다. area_risk 값은 RF-S3(피크)의 실제 산출값이고 센서 배열은 이 검사에 필요하지 않아 생략했다.",
+  "contract_version": "v1",
+  "source_kind": "FIXTURE",
+  "clock": {
+    "mode": "REPLAY",
+    "event_time": "2022-08-08T21:40:00+09:00",
+    "observed_at": "2022-08-08T21:40:00+09:00",
+    "forecast_issued_at": "2022-08-08T21:40:00+09:00",
+    "forecast_target_at": "2022-08-08T22:10:00+09:00",
+    "last_update_at": "2022-08-08T21:40:00+09:00",
+    "data_age_sec": 0,
+    "stale": false,
+    "expired": false,
+    "label": "2022-08-08 21:40 재생"
+  },
+  "location": {
+    "label": "강남역 일대",
+    "in_service_area": true,
+    "lat": 37.4979,
+    "lon": 127.0276
+  },
+  "risk": {
+    "asof": "2022-08-08T21:40:00+09:00",
+    "primary_horizon": 30,
+    "sensors": [],
+    "area_risk": {
+      "district": "강남역 반경 1000m",
+      "score": 1.0,
+      "risk_probability": 1.0,
+      "ai_risk_level": "HIGH",
+      "basis": "경로 범위(강남역 반경 1000m) 센서 5개 중 t+30분 고수위 확률>=0.33 인 비율 5/5. 지역 임계 0.5 이상이면 HIGH (지역 임계 TEAM_AGREED, 센서 임계 val_events@fpr_0.05). TH-04/O-01"
+    },
+    "drivers": [
+      {
+        "feature": "rain_past_60m_mm",
+        "value": 84.5,
+        "contribution": null
+      }
+    ],
+    "model": {
+      "name": "histgb",
+      "version": "v2",
+      "threshold": 0.33,
+      "threshold_basis": "val_events@fpr_0.05",
+      "threshold_version": "sensor-0.33+area-0.5"
+    },
+    "data_quality": {
+      "sensors_active": 31,
+      "observed_rate": 0.548,
+      "rain_available": true
+    }
+  },
+  "decision": {
+    "_stub": "손으로 적은 거부 예제다. 판단 엔진이 만든 값이 아니다.",
+    "primary_action": "EVACUATE",
+    "action": "EVACUATE",
+    "route_postprocess_applied": false,
+    "service_risk_level": "SEVERE",
+    "needs_route": true,
+    "next_check_at": null,
+    "reason_code": "AI_AREA_HIGH",
+    "user_state": {
+      "context": "OUTDOOR",
+      "trapped": false,
+      "hazard_signs": [],
+      "profiles": [],
+      "destination": {
+        "id": "GN-003",
+        "label": "역삼역",
+        "lat": 37.5006,
+        "lon": 127.0365
+      }
+    },
+    "reasons": [
+      {
+        "code": "AI_AREA_HIGH",
+        "text": "30분 뒤 지역 고수위 위험이 높게 예측됐습니다.",
+        "value": 1.0,
+        "threshold": 0.5,
+        "basis": "AI_PREDICTION"
+      },
+      {
+        "code": "RAIN_60M_OVER_TH02",
+        "text": "60분 누적 강우가 팀 기준값을 넘었습니다.",
+        "value": 84.5,
+        "threshold": 40.0,
+        "basis": "TEAM_RULE"
+      }
+    ],
+    "policy_version": "policy-0.1.0-draft"
+  },
+  "route": {
+    "_stub": "services/route 미구현. 형식을 보여주는 자리표시자다.",
+    "status": "FALLBACK_CANDIDATE",
+    "route_verified": false,
+    "route_target": "SAFE_POINT",
+    "target": {
+      "kind": "SHELTER",
+      "id": "SH-001",
+      "label": "합성값 - 실제 대피시설 아님",
+      "lat": 37.4995,
+      "lon": 127.0301,
+      "reason": "합성값",
+      "data_asof": "2022-08-08T21:40:00+09:00"
+    },
+    "route_attempted": true,
+    "no_safe_route": false,
+    "candidates": [],
+    "hazards": [],
+    "profile_applied": [],
+    "limit": "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보",
+    "source": "fixture:official_routes_30"
+  },
+  "official": {
+    "source": "fixture:official_0808",
+    "source_url": null,
+    "asof": "2022-08-08T21:40:00+09:00",
+    "verification": "DRAFT_UNVERIFIED",
+    "evacuation_order": false,
+    "alerts": [],
+    "closures": [],
+    "confirmed_flooding": []
+  },
+  "notice": {
+    "disclaimer": "교육·시연용입니다. 공식 재난안전 판단 도구가 아닙니다.",
+    "route_limit": "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보",
+    "emergency_note": "누르면 전화 앱이 열립니다. 서비스가 대신 신고하거나 위치를 보내지 않습니다."
+  },
+  "versions": {
+    "model": "histgb-v2",
+    "policy": "policy-0.1.0-draft",
+    "data": "processed/v2",
+    "contract": "v1"
+  },
+  "_expect_invalid": {
+    "schema": "assess_response",
+    "rule": "F-02 / C-23",
+    "why": "직접 안전신호 없이 AI 예측만으로 SEVERE 에 올라갔다"
+  }
+}

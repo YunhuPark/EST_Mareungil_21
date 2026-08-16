@@ -7,32 +7,48 @@
  *
  * 항상 보여야 하는 다섯 가지: 위험 상태, 현재 위치, 현재 행동, 재생 시각, 119.
  * 지도가 실패해도 이 다섯은 남는다.
+ *
+ * M-18. 재판단은 **수동 버튼**이다. 자동 감지·자동 재탐색을 두지 않는다.
+ * M-28 / M-35. 경로가 실패해도 119 와 행동 카드는 남는다 — 아래에서 경로 카드만
+ *       빠지고 나머지는 그대로다.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { fetchAssess, fetchDestinations } from './api';
+import { fetchAssess, fetchDestinations, fetchScenarios } from './api';
 import { ActionCard } from './components/ActionCard';
 import { DestinationPicker } from './components/DestinationPicker';
 import { EmergencyBar } from './components/EmergencyBar';
 import { MapPanel } from './components/MapPanel';
 import { ReasonList } from './components/ReasonList';
+import { ReassessBar } from './components/ReassessBar';
 import { RouteCard } from './components/RouteCard';
 import { TopStatus } from './components/TopStatus';
-import type { AssessResponse, DestinationList } from './contracts/types';
+import { VERIFICATION_LABEL } from './contracts/enums';
+import type { AssessResponse, DestinationList, ScenarioList } from './contracts/types';
 
-const SCENARIO = 'DS-S1';
+const DEFAULT_SCENARIO = 'DS-S1';
+
+/** M-15. `EVACUATE` 인데 갈 곳·길·근거가 없는 상태. 119 를 강조한다. */
+const EVACUATE_ROUTE_FAILURE: AssessResponse['route']['status'][] = [
+  'NO_SAFE_POINT',
+  'NO_SAFE_ROUTE',
+  'DATA_UNAVAILABLE',
+];
 
 export function App({ initialData }: { initialData?: AssessResponse } = {}) {
   const [data, setData] = useState<AssessResponse | null>(initialData ?? null);
   const [list, setList] = useState<DestinationList | null>(null);
+  const [scenarios, setScenarios] = useState<ScenarioList | null>(null);
+  const [scenario, setScenario] = useState(DEFAULT_SCENARIO);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async (destinationId?: string) => {
+  const load = useCallback(async (scenarioId: string, destinationId?: string) => {
     setBusy(true);
     try {
-      setData(await fetchAssess(SCENARIO, destinationId));
+      setData(await fetchAssess(scenarioId, destinationId));
+      setScenario(scenarioId);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -43,8 +59,9 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
 
   useEffect(() => {
     // 테스트에서 initialData 를 주면 네트워크를 부르지 않는다.
-    if (!initialData) void load();
+    if (!initialData) void load(DEFAULT_SCENARIO);
     fetchDestinations().then(setList).catch(() => setList(null));
+    fetchScenarios().then(setScenarios).catch(() => setScenarios(null));
   }, [initialData, load]);
 
   if (error && !data) {
@@ -69,6 +86,11 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
 
   const { decision, route, clock, location, notice } = data;
 
+  // M-15. 강조는 EMERGENCY 승격이 아니다 — 행동은 여전히 EVACUATE 다.
+  const emphasize119 =
+    decision.primary_action === 'EVACUATE' && EVACUATE_ROUTE_FAILURE.includes(route.status);
+  const verification = data.official?.verification;
+
   return (
     <div className="page">
       <TopStatus
@@ -85,6 +107,13 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
           </p>
         )}
 
+        {/* M-24 / M-36. 공식정보를 어떤 상태로 받았는지 숨기지 않는다. */}
+        {verification && verification !== 'VERIFIED_SOURCE' && (
+          <p className="badge badge--stub">
+            공식정보: {VERIFICATION_LABEL[verification] ?? verification}
+          </p>
+        )}
+
         <ActionCard
           action={decision.action}
           primaryAction={decision.primary_action}
@@ -94,13 +123,26 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
 
         <ReasonList reasons={decision.reasons} />
 
-        <DestinationPicker
-          list={list}
-          selected={decision.user_state.destination}
-          onSelect={(id) => void load(id)}
+        <ReassessBar
+          list={scenarios}
+          current={scenario}
+          onReassess={(id) => void load(id, decision.user_state.destination?.id)}
           disabled={busy}
         />
 
+        <DestinationPicker
+          list={list}
+          selected={decision.user_state.destination}
+          onSelect={(id) => void load(scenario, id)}
+          disabled={busy}
+        />
+
+        {/*
+          M-16 / M-18. 경로가 실패하면 카드를 지우지 않고 **안내만 바꾼다.**
+          카드를 통째로 감추면 "왜 안내가 없는지"가 화면에서 사라지고,
+          목적지 차단과 안내 가능한 경로 없음이 다시 같은 상태로 보인다.
+          도달 대상·후보 목록은 RouteCard 가 실패 상태에서 스스로 감춘다.
+        */}
         <RouteCard route={route} />
 
         <MapPanel data={data} />
@@ -114,6 +156,7 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
 
       <EmergencyBar
         urgent={decision.action === 'EMERGENCY'}
+        emphasis={emphasize119}
         locationText={`${location.label} (재생 시각 ${clock.label})`}
         note={notice.emergency_note}
       />

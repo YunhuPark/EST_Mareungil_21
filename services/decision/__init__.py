@@ -3,7 +3,19 @@
 ## 지금 구현된 것
 
 - `enums.py` — 공용 enum 단일 출처
-- `postprocess.py` — **확정된** 경로 후처리 1건 (`MOVE + NO_SAFE_ROUTE -> WAIT`)
+- `service_risk.py` — **축 1** `service_risk_level` 판정 (C-23)
+- `official.py` — 공식정보 가시성 필터 (M-36). 재생 시각에 **당시 알 수 있었던 것만** 남긴다
+- `postprocess.py` — 경로 후처리. **행동이 바뀌는 규칙 1건**
+  (`MOVE + NO_SAFE_ROUTE -> WAIT`) + **행동을 유지하고 사유만 붙이는 규칙 5건**(M-15·M-16)
+
+## 두 축은 각각 산출한다
+
+`service_risk_level` 과 `action` 을 1:1 로 잇지 않는다. 같은 입력에서 각각
+계산하며, 같은 `DANGER` 라도 안전한 실내면 `WAIT` 이고 실외면 `EVACUATE` 다.
+등급을 행동의 중간값으로 두면 그 차이를 등급 안에 숨겨야 한다.
+
+    service_risk.classify()  -> service_risk_level   (지금 얼마나 위험한가)
+    아래 우선순위 1~10       -> action               (지금 무엇을 해야 하는가)
 
 ## 아직 구현되지 않은 것 (T+3:00~6:00 구간)
 
@@ -45,19 +57,34 @@ from services.decision.enums import (
     ServiceRiskLevel,
     UserContext,
 )
+from services.decision.official import VisibilityResult, visible_at
 from services.decision.postprocess import ContractViolation, PostprocessResult, apply
+from services.decision.service_risk import (
+    DataState,
+    Reason,
+    RiskSignals,
+    ServiceRiskResult,
+    classify,
+)
 
 __all__ = [
     "Action",
     "AiRiskLevel",
     "Basis",
     "ContractViolation",
+    "DataState",
     "HazardSign",
     "PostprocessResult",
     "Profile",
+    "Reason",
+    "RiskSignals",
     "RouteStatus",
     "RouteTarget",
     "ServiceRiskLevel",
+    "ServiceRiskResult",
     "UserContext",
+    "VisibilityResult",
     "apply",
+    "classify",
+    "visible_at",
 ]
