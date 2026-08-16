@@ -27,8 +27,9 @@
 ----
 - 순수 함수만 둔다. I/O·HTTP·파일 읽기를 하지 않는다(N-04 재현성).
 - 새 기준값을 만들지 않는다. 여기 있는 수는 전부 설계서 9.1·9.2 의 확정값이며
-  출처를 상수 주석에 적었다. 미확정 항목은 `OPEN_ADDITIONAL_SIGNALS` 에 사유와
-  함께 남기고 판정에 쓰지 않는다(CLAUDE.md 9절).
+  출처를 상수 주석에 적었다(CLAUDE.md 9절).
+- **이 모듈에 남은 미확정 항목은 없다.** O-15(추가 위험신호 집합)가
+  2026-08-16 에 닫혔다 — 아래 `_additional_signals()` 위 주석 참조.
 """
 
 from __future__ import annotations
@@ -66,29 +67,42 @@ OBSERVED_RATE_MIN = 0.70
 MAX_REASONS = 3
 
 
-# --- OPEN: DANGER 의 추가 위험신호 -------------------------------------------
+# --- DANGER 의 추가 위험신호 — 확정 (O-15, 2026-08-16) -----------------------
 #
-# "AI HIGH + 강우·하수 부담 등 추가 위험신호" 에서 **무엇을 추가 신호로 셀지**는
-# 아직 다 정해지지 않았다. 아래는 실제로 제공 가능한 값과 기존 기준을 확인한
-# 결과이며, 확정 전까지 판정에 쓰지 않는다.
-
-OPEN_ADDITIONAL_SIGNALS: dict[str, str] = {
-    "TH01_RAIN_10M": (
-        "OPEN(O-15): TH-01(10분 강우 >= 5mm)은 설계서 9.2 의 확정값이지만 지금 "
-        "판정에 쓸 수 없다. RiskAssessment 계약이 10분 강우를 싣지 않기 때문이다 — "
-        "drivers[] 가 나르는 강우는 rain_past_30m_mm 와 rain_past_60m_mm 둘뿐이다"
-        "(build_demo_fixtures.DRIVER_FEATURES). 모델링 데이터셋에는 rain_past_10m_mm 이 "
-        "있으므로(run_models.py) 픽스처 생성기가 실어 보내면 쓸 수 있다. "
-        "결정 기한 G2 · 담당 E."
-    ),
-    "SEWER_LOAD": (
-        "OPEN(O-15): '하수 부담'을 별도 추가 신호로 세지 않는다. TH-05(하수 고수위)는 "
-        "이미 ai_risk_level 을 통해 들어와 있어(설계서 9.2 'TH-05 는 규칙 9 에서 다시 "
-        "세지 않는다') 다시 세면 같은 축을 두 번 세는 것이 된다. 독립 신호로 쓰려면 "
-        "ai_risk_level 과 무관한 하수 지표와 그 임계가 필요한데 저장소에 근거가 없다. "
-        "결정 기한 G2 · 담당 E."
-    ),
-}
+# **등급 축에서 세는 추가 위험신호는 TH-02 하나뿐이다.**
+#
+# TH-01 을 왜 등급 축에 넣지 않나
+# -------------------------------
+# TH-01(10분 >= 5mm)과 TH-02(60분 >= 40mm)를 **OR 로 묶는 것은 확정**이다
+# (요구사항 정의서 167 · 설계서 9.2 · 회귀 케이스 R14). 다만 그 확정은
+# **행동 축**(규칙 9 -> WAIT)에 대한 것이고, 등급 축이 같은 묶음을 재사용할지는
+# 따로 정해야 했다. 재사용하지 않기로 했다.
+#
+# 발화 빈도가 다르다. `data_unified/processed/v2/event_windows.csv` 의 강우 사건
+# 22개(전체 45개 중 DRY 23개 제외) 기준:
+#
+#     TH-02  60분 >= 40mm    6개  (27%)
+#     TH-01  10분 >=  5mm   14개  (64%)   <- 2.3배
+#
+# AI 가 HIGH 인 시점은 대체로 비가 세게 오는 시점이라, 등급 축에서 OR 를 그대로
+# 쓰면 **DANGER 가 사실상 AI HIGH 와 같아진다.** 그러면 조합표(DECISIONS 2.2.1)의
+# `CAUTION` + `HIGH 단독` 행이 비고, 등급을 네 단계로 나눈 이유가 사라진다 —
+# DANGER 가 "복합 위험"이라는 말이 성립하려면 AI 보다 선택적인 신호여야 한다.
+#
+# **같은 신호가 두 축에서 다른 무게를 갖는 것이 C-23 의 요점이다.** TH-01 은
+# "지금 움직이지 마라"를 만들기엔 충분하지만 "여러 신호가 동시에 확인됐다"를
+# 말하기엔 흔하다. 그래서 행동 축에서는 여전히 WAIT 을 만들고(규칙 9), 등급 축에서는
+# 세지 않는다. 화면에 `CAUTION` + `WAIT` 이 함께 나오는 것은 의도된 조합이다.
+#
+# 하수 부담을 왜 세지 않나
+# ------------------------
+# TH-05(하수 고수위)는 이미 `ai_risk_level` 을 통해 들어와 있다. 설계서 9.2 가
+# "TH-05 는 규칙 9 에서 다시 세지 않는다"고 정해 뒀고, 이것을 추가 신호로 다시
+# 세면 **같은 축을 두 번 세는 것**이 되어 "복합 위험"이 성립하지 않는다. 독립
+# 신호로 쓰려면 `ai_risk_level` 과 무관한 하수 지표와 임계가 필요한데 저장소에
+# 근거가 없다.
+#
+# 새 수는 하나도 만들지 않았다. 확정값 TH-02 를 어디에 쓸지만 정했다.
 
 
 @dataclass(frozen=True)
@@ -226,14 +240,15 @@ class ServiceRiskResult:
         level: 최종 서비스 위험 등급.
         reasons: 이 등급이 나온 이유. 중요한 순서이며 상한은 `MAX_REASONS` 다.
         data_state: 데이터 상태. 등급 축과 섞지 않는다.
-        open_policy: 이 판정에 걸린 미확정 항목의 사유. 비어 있지 않으면
-            화면·발표에서 "이 기준은 아직 확정 전"이라고 말할 근거가 된다.
+
+    예전에 `open_policy` 필드가 있었다. O-15 가 닫히면서 **항상 비게 되어**
+    없앴다 — 언제나 빈 값인 필드는 "미확정이 있는지"를 더 이상 말해주지 못하고,
+    남겨두면 다음 사람이 그걸 채우는 것을 잊었다고 읽는다.
     """
 
     level: ServiceRiskLevel
     reasons: tuple[Reason, ...]
     data_state: DataState
-    open_policy: tuple[str, ...] = ()
 
 
 def _data_state(s: RiskSignals) -> DataState:
@@ -292,8 +307,9 @@ def _direct_signals(s: RiskSignals) -> list[Reason]:
 def _additional_signals(s: RiskSignals) -> list[Reason]:
     """AI `HIGH` 위에 얹히는 추가 위험신호.
 
-    현재 셀 수 있는 것은 **TH-02(60분 누적 강우) 하나뿐**이다. 나머지는
-    `OPEN_ADDITIONAL_SIGNALS` 에 사유를 적어두고 세지 않는다.
+    **TH-02(60분 누적 강우) 하나뿐이며 이것은 확정 규칙이다**(O-15).
+    "아직 안 정해서 하나만 센다"가 아니라 "하나만 세기로 정했다"이다.
+    TH-01 과 하수 부담을 왜 빼는지는 이 파일 위쪽 O-15 주석에 있다.
     """
     if s.rain_past_60m_mm is not None and s.rain_past_60m_mm >= RAIN_60M_MM:
         return [
@@ -398,9 +414,6 @@ def classify(signals: RiskSignals) -> ServiceRiskResult:
             data_state=state,
         )
 
-    # 여기부터는 DANGER 판정을 실제로 거치므로 미확정 사유를 함께 싣는다.
-    open_policy = tuple(OPEN_ADDITIONAL_SIGNALS.values())
-
     # M-08. 30분을 넘긴 자료는 등급 산출에서 뺀다. AI 확률과 강우가 여기 해당하고,
     # 위의 직접 안전신호는 이미 지나간 뒤라 영향을 받지 않는다 - 자기신고와 공식
     # 지시는 내부 관측 자료가 아니기 때문이다.
@@ -421,13 +434,11 @@ def classify(signals: RiskSignals) -> ServiceRiskResult:
                 level=ServiceRiskLevel.DANGER,
                 reasons=tuple(([ai_reason] + extra + _quality_reasons(state))[:MAX_REASONS]),
                 data_state=state,
-                open_policy=open_policy,
             )
         return ServiceRiskResult(
             level=ServiceRiskLevel.CAUTION,
             reasons=tuple(([ai_reason] + _quality_reasons(state))[:MAX_REASONS]),
             data_state=state,
-            open_policy=open_policy,
         )
 
     # AI 가 HIGH 가 아닌데 강우가 기준을 넘은 경우. 복합 위험은 아니지만
@@ -439,7 +450,6 @@ def classify(signals: RiskSignals) -> ServiceRiskResult:
             level=ServiceRiskLevel.CAUTION,
             reasons=tuple(caution[:MAX_REASONS]),
             data_state=state,
-            open_policy=open_policy,
         )
 
     return ServiceRiskResult(
@@ -452,5 +462,4 @@ def classify(signals: RiskSignals) -> ServiceRiskResult:
             ),
         ),
         data_state=state,
-        open_policy=open_policy,
     )

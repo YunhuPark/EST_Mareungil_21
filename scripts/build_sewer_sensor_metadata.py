@@ -14,7 +14,9 @@ import pandas as pd
 import requests
 
 
-ROOT = Path(r"C:\2026_Mareungil")
+#: 저장소 루트. 이 파일은 `<루트>/scripts/build_sewer_sensor_metadata.py` 다.
+#: 절대경로를 박으면 그 기계 밖에서는 아무도 못 돌린다(tests/test_portability.py).
+ROOT = Path(__file__).resolve().parents[1]
 KEY_PATHS = [
     ROOT / ".secrets" / "seoul_openapi_key.txt",
     ROOT / "secrets" / "seoul_openapi_key.txt",

@@ -19,7 +19,6 @@ from services.decision.service_risk import (
     EXPIRED_SEC,
     MAX_REASONS,
     OBSERVED_RATE_MIN,
-    OPEN_ADDITIONAL_SIGNALS,
     RAIN_60M_MM,
     STALE_SEC,
     RiskSignals,
@@ -96,11 +95,57 @@ def test_AI_HIGH_에_강우가_겹치면_DANGER():
     assert {r.code for r in result.reasons} >= {"AI_AREA_HIGH", "RAIN_60M_OVER_TH02"}
 
 
-def test_DANGER_판정에는_미확정_사유가_함께_실린다():
-    """O-15. 추가 위험신호 집합이 아직 확정 전이라는 사실을 숨기지 않는다."""
-    result = classify(RiskSignals(**{**vars(CLEAN), "ai_risk_level": AiRiskLevel.HIGH}))
-    assert set(result.open_policy) == set(OPEN_ADDITIONAL_SIGNALS.values())
-    assert all(text.startswith("OPEN(O-15)") for text in result.open_policy)
+def test_등급_축의_추가_신호는_TH02_하나뿐이다():
+    """O-15 확정. **TH-01 은 등급 축에 넣지 않는다.**
+
+    이 검사가 O-15 의 전부다. TH-01(10분 >= 5mm)과 TH-02(60분 >= 40mm)를 OR 로
+    묶는 것은 **행동 축**에서 확정된 규칙이고(요구사항 167 · R14), 등급 축은 그
+    묶음을 재사용하지 않기로 했다 — TH-01 은 강우 사건 22개 중 14개에서 걸려
+    TH-02(6개)보다 2.3배 흔하고, 등급 축에 넣으면 `DANGER` 가 사실상 `AI HIGH`
+    와 같아져 `CAUTION` + `HIGH 단독` 칸이 비기 때문이다.
+
+    여기서 재는 것: **60분 누적이 기준 아래면, 10분 강우가 아무리 세도 `DANGER`
+    가 아니다.** `_additional_signals()` 에 TH-01 분기를 넣는 순간 빨개진다.
+    """
+    # 10분 5mm 가 10분 동안 이어져도 60분 누적은 5mm 다 — TH-01 발화, TH-02 미발화.
+    result = classify(
+        RiskSignals(
+            **{
+                **vars(CLEAN),
+                "ai_risk_level": AiRiskLevel.HIGH,
+                "rain_past_60m_mm": 5.0,
+            }
+        )
+    )
+    assert result.level is ServiceRiskLevel.CAUTION, (
+        "TH-02 아래인데 DANGER 가 됐다. 등급 축에 TH-01 이 들어왔는지 확인하라 (O-15)"
+    )
+    assert {r.code for r in result.reasons} == {"AI_AREA_HIGH"}
+
+
+def test_등급_축_추가신호의_경계는_TH02_확정값이다():
+    """경계가 조용히 움직이지 않게 양쪽을 함께 잰다."""
+    just_under = classify(
+        RiskSignals(
+            **{
+                **vars(CLEAN),
+                "ai_risk_level": AiRiskLevel.HIGH,
+                "rain_past_60m_mm": RAIN_60M_MM - 0.1,
+            }
+        )
+    )
+    assert just_under.level is ServiceRiskLevel.CAUTION
+
+    at_threshold = classify(
+        RiskSignals(
+            **{
+                **vars(CLEAN),
+                "ai_risk_level": AiRiskLevel.HIGH,
+                "rain_past_60m_mm": RAIN_60M_MM,
+            }
+        )
+    )
+    assert at_threshold.level is ServiceRiskLevel.DANGER
 
 
 def test_강우_기준값은_설계서_9_2_의_확정값을_그대로_쓴다():

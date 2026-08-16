@@ -24,13 +24,23 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(ROOT))
 
 from mareungil import area_risk  # stdlib 만 쓴다. pandas 를 끌고 오지 않는다.
 
-ROOT = Path(__file__).resolve().parent.parent
+# CLAUDE.md 10절이 허용하는 방향이다 - scripts/ 가 services/ 를 **읽기 전용**으로
+# 쓴다. M-36 필터를 여기서 다시 구현하면 두 구현이 조용히 어긋난다.
+from services.decision import visible_at
+from services.decision.enums import Action, RouteStatus
+from services.decision.postprocess import CONFIRMED_HOLDS
+
 FIXTURES = ROOT / "contracts" / "fixtures"
 OUT_DIR = FIXTURES / "demo"
+
+OFFICIAL_0808 = FIXTURES / "official" / "official_0808.json"
+OFFICIAL_DEMO_BLOCKED = FIXTURES / "official" / "official_demo_destination_blocked.json"
 
 DISCLAIMER = "교육·시연용입니다. 공식 재난안전 판단 도구가 아닙니다."
 ROUTE_LIMIT = "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보"
@@ -85,6 +95,41 @@ def build_clock(risk: dict, data_age_sec: int = 0) -> dict:
         "expired": data_age_sec > EXPIRED_SEC,
         "label": replay_label(event),
     }
+
+
+def official_at(event_time: str, path: Path = OFFICIAL_0808) -> dict:
+    """M-36. 재생 시각에 **이미 공개돼 있던** 공식정보만 남긴 블록을 만든다.
+
+    예전에는 `official_0808.json` 을 필터 없이 통째로 실었다. 파일이 비어 있는
+    동안에는 아무 일도 없었지만, O-11 로 실제 값이 들어오는 순간 **11:00 화면이
+    22:01 에 보도된 통제를 아는** 상태가 된다. 그러면 서비스가 당시 사용자가 알
+    수 없었던 것을 안 것처럼 보이고, 그 상태로 만든 판단은 실제 상황에서 재현되지
+    않는다 - M-36 이 막으려던 것이 정확히 그것이다.
+
+    필터 구현은 `services/decision/official.py` 하나뿐이다. 여기서 다시 구현하지
+    않는다(CLAUDE.md 10절이 허용하는 읽기 전용 방향).
+
+    `_` 로 시작하는 원본의 개발 주석은 옮기지 않는다. 계약 필드는 하나도 골라
+    담지 않으므로 C-21 이 지키려던 것("소비자가 실제 파일을 그대로 받는다")은
+    그대로다 - `test_공식정보_블록은_재생시각_필터를_거친_결과다` 가 이것을 고정한다.
+    """
+    doc = load(path)
+    result = visible_at(doc, event_time)
+
+    block = {k: v for k, v in result.official.items() if not k.startswith("_")}
+    block["asof"] = event_time
+    block["_source_file"] = path.relative_to(ROOT).as_posix()
+    block["_visibility"] = {
+        "_note": (
+            "M-36. 재생 시각에 available_time 이 지나지 않은 항목과 공개시각을 확인하지 "
+            "못한(null) 항목을 뺀 결과다. 아래 수는 '이 시각에는 아직 알 수 없었다'를 "
+            "말하기 위한 것이며 계약 필드가 아니다."
+        ),
+        "replay_time": event_time,
+        "hidden": result.hidden,
+        "undated": result.undated,
+    }
+    return block
 
 
 def apply_area_risk(risk: dict) -> dict:
@@ -225,11 +270,10 @@ def build_ds_s1() -> dict:
             "source": "fixture:official_routes_30",
         },
 
-        # C-21. 손으로 4개 키만 골라 적지 않고 공식정보 픽스처를 **그대로** 싣는다.
-        # 예전에는 여기서 evacuation_order·alerts·closures·source 만 옮겨 적었고,
-        # 그래서 asof·verification·confirmed_flooding 을 계약이 받지 못한다는 사실이
-        # 어떤 픽스처에서도 드러나지 않았다. 실제 파일을 통과시켜야 계약이 검사된다.
-        "official": load(FIXTURES / "official" / "official_0808.json"),
+        # C-21 + M-36. 계약 필드는 하나도 골라 담지 않되(그래야 asof·verification·
+        # confirmed_flooding 을 소비자가 받는지 픽스처에서 드러난다), 이 재생 시각에
+        # 아직 공개되지 않았던 항목은 뺀다. 두 규칙이 함께 필요하다.
+        "official": official_at(build_clock(risk)["event_time"]),
 
         # data_quality 는 최상위에 복사하지 않는다. 정본은 risk.data_quality 하나다.
         # 두 곳에 두면 DQ-03(관측률<70% -> WAIT)이 어느 값을 읽는지 모호해진다.
@@ -337,7 +381,7 @@ def _evacuate_base() -> tuple[dict, dict]:
             ],
             "policy_version": POLICY_VERSION,
         },
-        "official": load(FIXTURES / "official" / "official_0808.json"),
+        "official": official_at(build_clock(risk)["event_time"]),
         "notice": {
             "disclaimer": DISCLAIMER,
             "route_limit": ROUTE_LIMIT,
@@ -491,6 +535,142 @@ def build_ds_s8() -> dict:
     return response
 
 
+# --- M-16. 목적지가 막혔을 때 --------------------------------------------------
+
+
+def build_ds_s6() -> dict:
+    """DS-S6 — MOVE + 목적지가 공식 통제 구간 -> DESTINATION_BLOCKED. MOVE 유지.
+
+    **공식정보만 시연용 파일을 쓴다.** 실제로 확인된 2022-08-08 통제 중에는 이
+    화면을 만들 수 있는 것이 없다 - 강남 도로 통제 보도가 전부 22:01 이후 송고라
+    21:40 에는 공개돼 있지 않았고(M-36), 강남역 반경 1km 안의 통제 하나는 차량
+    통제라 보행 목적지를 막지 못한다(RT-11). 지어낸 값과 확인된 값을 한 파일에
+    섞지 않으려고 파일을 나눴고, 화면은 DEMO_FIXTURE 배지를 그대로 띄운다(M-24).
+
+    risk 블록은 RF-S2(12:10, 상승 국면, 실제 모델 출력)다. 지역값 0.4 로 아직
+    `LOW` 이므로 1차 행동이 `MOVE` 다 - 목적지가 막혔다고 해서 이동 자체가
+    위험해지지는 않는다는 것이 이 시나리오가 보여주려는 것이다.
+    """
+    risk = load(FIXTURES / "risk_S2_rising.json")
+    area = apply_area_risk(risk)
+    prob = area["risk_probability"]
+    clock = build_clock(risk)
+
+    official = official_at(clock["event_time"], OFFICIAL_DEMO_BLOCKED)
+    blocked_ids = {
+        did for c in official["closures"] for did in c.get("blocks_destination_ids", [])
+    }
+
+    destinations = load(ROOT / "contracts" / "destinations.json")
+    destination = next(p for p in destinations["points"] if p["id"] in blocked_ids)
+    dest = {k: destination[k] for k in ("id", "label", "lat", "lon")}
+
+    # 문구를 손으로 옮겨 적지 않는다. 확정 규칙의 단일 출처는 postprocess 다 —
+    # 두 곳에 적으면 회의 확정문을 고칠 때 한쪽만 바뀐다.
+    code, text, basis = CONFIRMED_HOLDS[(Action.MOVE, RouteStatus.DESTINATION_BLOCKED)]
+
+    return {
+        "_scenario": "DS-S6",
+        "_why_this_moment": (
+            "M-16. 사용자가 고른 목적지가 이 시각에 공식 통제 구간에 들어 있다. "
+            "행동은 MOVE 그대로이고 바뀌는 것은 경로안내뿐이다 — 막힌 것은 목적지이지 "
+            "이동 자체가 아니며, 그 동네가 위험한지는 우선순위 6~9 에서 이미 판정됐다. "
+            "차단 근거는 blocks_destination_ids 명시 지정 하나뿐이고 좌표 거리로 "
+            "추정하지 않는다(O-07)."
+        ),
+        "_risk_source": "contracts/fixtures/risk_S2_rising.json (RF-S2) — 실제 모델 출력",
+        "_stub": (
+            "decision·route 블록은 STUB 이고 공식정보는 시연용 합성값이다"
+            "(M-24 DEMO_FIXTURE). 실제 확인된 통제로는 이 화면이 만들어지지 않는다."
+        ),
+
+        "contract_version": CONTRACT_VERSION,
+        "source_kind": "FIXTURE",
+
+        "clock": clock,
+
+        "location": {
+            "label": "강남역 일대",
+            "in_service_area": True,
+            "lat": 37.4979,
+            "lon": 127.0276,
+        },
+
+        "risk": risk,
+
+        "decision": {
+            "_stub": "우선순위 10(그 외) 기본값 + M-16 유지. services/decision 구현 전 손으로 적은 값이다.",
+            "primary_action": "MOVE",
+            "action": "MOVE",
+            # 유지는 '적용했다'가 아니다. 행동이 바뀌지 않았으므로 False 다(RT-10).
+            "route_postprocess_applied": False,
+            "service_risk_level": "SAFE",
+            "needs_route": True,
+            "next_check_at": "2022-08-08T12:40:00+09:00",
+            "reason_code": code,
+            "user_state": {
+                "context": "OUTDOOR",
+                "trapped": False,
+                "hazard_signs": [],
+                "profiles": [],
+                "destination": dest,
+            },
+            "reasons": [
+                {
+                    "code": "AI_AREA_LOW",
+                    "text": f"30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 {prob}).",
+                    "value": prob,
+                    "threshold": area_risk.AREA_THRESHOLD,
+                    "basis": "AI_PREDICTION",
+                },
+                {
+                    "code": code,
+                    "text": text,
+                    "value": None,
+                    "threshold": None,
+                    "basis": basis.value,
+                },
+            ],
+            "policy_version": POLICY_VERSION,
+        },
+
+        "route": {
+            "_stub": "services/route 미구현. 통제 값은 시연용 합성값이다.",
+            "status": "DESTINATION_BLOCKED",
+            "route_verified": False,
+            "route_target": "USER_DESTINATION",
+            # M-16. 경로안내를 중단한다. 목적지가 막힌 채로 후보를 그리면
+            # 화면이 '그래도 이쪽으로 가라'로 읽힌다.
+            "target": None,
+            "route_attempted": False,
+            "no_safe_route": None,
+            "distance_m": None,
+            "eta_sec": None,
+            "detour_ratio": None,
+            "candidates": [],
+            "hazards": [],
+            "profile_applied": [],
+            "limit": ROUTE_LIMIT,
+            "source": "fixture:demo_destination_blocked (합성값)",
+        },
+
+        "official": official,
+
+        "notice": {
+            "disclaimer": DISCLAIMER,
+            "route_limit": text,
+            "emergency_note": EMERGENCY_NOTE,
+        },
+
+        "versions": {
+            "model": f"{risk['model']['name']}-{risk['model']['version']}",
+            "policy": POLICY_VERSION,
+            "data": "processed/v2",
+            "contract": CONTRACT_VERSION,
+        },
+    }
+
+
 # --- 반드시 거부되어야 하는 조합 -------------------------------------------
 #
 # 계약이 "무엇을 막는가"는 통과 예제가 아니라 거부 예제가 증명한다. 아래 파일이
@@ -613,6 +793,29 @@ def _invalid_cases() -> dict[str, dict]:
     r["clock"].update(data_age_sec=2400, stale=False, expired=True)
     cases["expired_without_stale"] = r
 
+    # M-36. observed_at 을 nullable 로 바꿨다고 필드를 빼도 되는 것은 아니다.
+    # null 은 '관측 시각을 확인하지 못했다'이고, 키가 없는 것은 '그런 항목을 아예
+    # 생각하지 않았다'다. 둘을 같게 두면 확인 안 한 것이 조용히 사라진다.
+    cases["flooding_without_observed_at"] = {
+        "_expect_invalid": {
+            "schema": "official_info",
+            "rule": "M-36",
+            "why": (
+                "confirmed_flooding 항목에 observed_at 키가 아예 없다. "
+                "관측 시각 미확인은 null 로 적고 필드를 빼지 않는다"
+            ),
+        },
+        "source": "fixture:reject_probe",
+        "asof": "2022-08-08T21:40:00+09:00",
+        "verification": "DEMO_FIXTURE",
+        "evacuation_order": False,
+        "alerts": [],
+        "closures": [],
+        "confirmed_flooding": [
+            {"geom_ref": "PROBE-F-001", "available_time": None},
+        ],
+    }
+
     # RT-09b. 탐색하지 않은 상태에서 '안전한 경로가 없다'고 단정할 수 없다.
     cases["no_safe_route_without_attempt"] = {
         "_expect_invalid": {
@@ -632,9 +835,10 @@ def _invalid_cases() -> dict[str, dict]:
     return cases
 
 
-# DS-S2 ~ DS-S6 는 T+6:00~8:00 구간 작업이다. 여기 자리만 남겨둔다.
 BUILDERS = {
     "DS-S1": build_ds_s1,
+    # M-16 의 목적지 차단. 공식정보만 시연용 파일을 쓴다.
+    "DS-S6": build_ds_s6,
     # M-32 의 시설 상태 흐름. 시설 값은 합성이고 risk 블록만 실제 모델 출력이다.
     "DS-S7": build_ds_s7,
     "DS-S8": build_ds_s8,
@@ -645,7 +849,6 @@ PENDING = {
     "DS-S3": "공식 대피 지시 또는 AI HIGH + 실외 -> EVACUATE + SAFE_POINT",
     "DS-S4": "trapped=true -> EMERGENCY",
     "DS-S5": "MOVE + 모든 후보 제외 -> NO_SAFE_ROUTE, 최종 WAIT",
-    "DS-S6": "MOVE + 목적지가 공식 통제 구간 -> DESTINATION_BLOCKED",
 }
 
 

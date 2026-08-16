@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import json
 
-from contracts.validate import FIXTURE_DIR, load_schemas
+import pytest
+
+from contracts.validate import FIXTURE_DIR, ROOT, load_schemas
 from services.decision import visible_at
 
 REPLAY = "2022-08-08T20:10:00+09:00"
@@ -131,10 +133,88 @@ def test_대피지시는_거르지_않는다():
 
 
 def test_실제_픽스처에도_그대로_적용된다():
-    """official_0808.json 은 아직 배열이 비어 있다 - 그래도 통과해야 한다."""
-    official = json.loads(
+    """O-11 로 채운 실제 값에 필터가 실제로 걸린다.
+
+    2026-08-16 확정 시각 21:40 기준이다. 그날 강남 도로 통제 보도는 **전부 22:01
+    이후 송고**됐으므로 이 시각에 공개돼 있던 공식 통제는 0건이다. 데이터 누락이
+    아니라 당시 시민이 알 수 있던 것의 실제 범위이며, 이 사실이 조용히 뒤집히면
+    (누군가 available_time 을 발생시각으로 바꾸면) 여기가 빨개진다.
+    """
+    official = _real_official()
+    result = visible_at(official, DEMO_REPLAY)
+
+    assert result.official["closures"] == [], (
+        "21:40 에 공개된 공식 통제가 생겼다. available_time 을 발생시각으로 "
+        "바꾸지 않았는지 확인하라 (M-36)"
+    )
+    assert result.hidden["closures"] == 5
+    # 양재천로는 구간·시각이 모두 미확인이라 공개시각도 특정할 수 없다.
+    assert result.undated["closures"] == 1
+
+    # 특보는 발효와 동시에 공표되므로 21:40 에 세 건이 보인다.
+    assert [a["type"] for a in result.official["alerts"]] == [
+        "호우주의보",
+        "호우경보",
+        "홍수주의보",
+    ]
+
+
+def _real_official() -> dict:
+    return json.loads(
         (FIXTURE_DIR / "official" / "official_0808.json").read_text(encoding="utf-8")
     )
-    result = visible_at(official, REPLAY)
-    assert result.hidden_total == 0
-    assert result.undated_total == 0
+
+
+#: O-12 확정. 2022-08-08 21:40 — 강남구 1시간 최대 강수량이 관측된 시간대다.
+DEMO_REPLAY = "2022-08-08T21:40:00+09:00"
+
+DEMO_RESPONSES = sorted((FIXTURE_DIR / "demo").glob("*.assess_response.json"))
+
+
+def test_검사할_데모_응답이_있다():
+    assert DEMO_RESPONSES
+
+
+@pytest.mark.parametrize("path", DEMO_RESPONSES, ids=lambda p: p.name.split(".")[0])
+def test_공식정보_블록은_재생시각_필터를_거친_결과다(path):
+    """M-36. 생성기가 공식정보 파일을 **통째로** 싣던 것을 막는다.
+
+    이 검사가 없던 동안 `build_demo_assess_fixtures.py` 는 `official_0808.json` 을
+    필터 없이 각 응답에 넣었다. 파일이 비어 있어 아무 일도 없었을 뿐이고, O-11 이
+    실제 값을 채우는 순간 **11:00 화면이 22:01 에 보도된 통제를 아는** 상태가 됐다.
+
+    필터를 빼면 DS-S1 의 closures 가 5건이 되면서 여기가 빨개진다.
+    """
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    official = payload["official"]
+    event_time = payload["clock"]["event_time"]
+
+    source = json.loads((ROOT / official["_source_file"]).read_text(encoding="utf-8"))
+    expected = visible_at(source, event_time).official
+
+    assert official["asof"] == event_time, (
+        "공식정보 스냅샷 시각이 재생 시각과 다르다. 한 화면이 두 시각을 말하게 된다"
+    )
+    for block in ("alerts", "closures", "confirmed_flooding"):
+        assert official[block] == expected[block], f"{block} 이 필터 결과와 다르다"
+
+
+@pytest.mark.parametrize("path", DEMO_RESPONSES, ids=lambda p: p.name.split(".")[0])
+def test_재생시각_이후에_공개된_정보가_화면에_없다(path):
+    """위 검사가 '필터를 돌렸다'를 본다면 이건 **결과가 실제로 맞는지**를 본다.
+
+    필터 구현이 바뀌어도(예: 비교가 `>=` 로 뒤집혀도) 이 검사는 남는다.
+    """
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    event_time = payload["clock"]["event_time"]
+
+    for block in ("alerts", "closures", "confirmed_flooding"):
+        for item in payload["official"].get(block, []):
+            available = item.get("available_time")
+            assert available is not None, (
+                f"{path.name} {block}: 공개시각을 확인하지 못한 항목이 화면까지 갔다"
+            )
+            assert available <= event_time, (
+                f"{path.name} {block}: {available} 에 공개된 정보가 "
+                f"{event_time} 화면에 있다 (M-36)"
+            )

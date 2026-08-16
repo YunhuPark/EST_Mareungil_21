@@ -832,6 +832,11 @@
       "contribution": null
     },
     {
+      "feature": "rain_past_10m_mm",
+      "value": 9.25,
+      "contribution": null
+    },
+    {
       "feature": "level_delta_30m",
       "value": -0.13,
       "contribution": null

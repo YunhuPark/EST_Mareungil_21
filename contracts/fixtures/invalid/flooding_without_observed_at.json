@@ -1,0 +1,19 @@
+{
+  "_expect_invalid": {
+    "schema": "official_info",
+    "rule": "M-36",
+    "why": "confirmed_flooding 항목에 observed_at 키가 아예 없다. 관측 시각 미확인은 null 로 적고 필드를 빼지 않는다"
+  },
+  "source": "fixture:reject_probe",
+  "asof": "2022-08-08T21:40:00+09:00",
+  "verification": "DEMO_FIXTURE",
+  "evacuation_order": false,
+  "alerts": [],
+  "closures": [],
+  "confirmed_flooding": [
+    {
+      "geom_ref": "PROBE-F-001",
+      "available_time": null
+    }
+  ]
+}

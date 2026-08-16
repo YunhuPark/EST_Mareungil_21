@@ -117,3 +117,44 @@ def test_같은_요청은_같은_응답을_준다(client):
     first = client.get("/api/assess").json()
     second = client.get("/api/assess").json()
     assert first == second
+
+
+# --- 프로필 (M-37) ----------------------------------------------------------
+
+
+def test_프로필_선택이_응답에_반영된다(client):
+    body = client.get("/api/assess", params={"profile": ["ELDERLY", "WITH_CHILD"]}).json()
+    assert body["decision"]["user_state"]["profiles"] == ["ELDERLY", "WITH_CHILD"]
+
+
+def test_프로필은_아직_경로에_적용되지_않는다(client):
+    """M-37 은 확정됐지만 적용할 경로 비교 엔진이 STUB 이다.
+
+    **확정과 구현은 다르다**(CLAUDE.md 3절). 고른 값은 `user_state.profiles` 로
+    전달되고 `route.profile_applied` 는 비어 있다 — 이 어긋남이 현재 상태를
+    정확히 말한다. 경로 엔진이 붙으면서 순서를 실제로 조정하기 시작하면 여기가
+    빨개지고, 그때 화면 문구도 같이 고쳐야 한다.
+    """
+    body = client.get("/api/assess", params={"profile": ["ELDERLY"]}).json()
+    assert body["decision"]["user_state"]["profiles"] == ["ELDERLY"]
+    assert body["route"].get("profile_applied") == []
+
+
+def test_프로필은_위험과_행동을_바꾸지_않는다(client):
+    """M-37. 사용자 유형으로 안전 기준을 완화하지도, 강화하지도 않는다."""
+    base = client.get("/api/assess").json()
+    with_profile = client.get("/api/assess", params={"profile": ["ELDERLY"]}).json()
+    assert with_profile["decision"]["action"] == base["decision"]["action"]
+    assert (
+        with_profile["decision"]["service_risk_level"]
+        == base["decision"]["service_risk_level"]
+    )
+
+
+def test_MVP_밖_프로필은_거부한다(client):
+    """X1 / C-14. WHEELCHAIR·WITH_PET 은 검증 데이터 부족으로 계약 enum 밖이다.
+
+    400 이어야 한다. 그냥 통과시키면 계약 검증에서 500 이 나는데, 그건 사용자
+    입력 오류를 서버 오류로 보고하는 것이다.
+    """
+    assert client.get("/api/assess", params={"profile": ["WHEELCHAIR"]}).status_code == 400

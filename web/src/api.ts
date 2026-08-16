@@ -18,9 +18,15 @@ async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function fetchAssess(scenario: string, destinationId?: string): Promise<AssessResponse> {
+export function fetchAssess(
+  scenario: string,
+  destinationId?: string,
+  /** M-37. 순서 조정용이며 안전 기준을 완화하지 않는다. */
+  profiles: string[] = [],
+): Promise<AssessResponse> {
   const params = new URLSearchParams({ scenario });
   if (destinationId) params.set('destination', destinationId);
+  for (const p of profiles) params.append('profile', p);
   return getJson<AssessResponse>(`/api/assess?${params.toString()}`);
 }
 

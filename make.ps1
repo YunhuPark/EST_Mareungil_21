@@ -83,7 +83,24 @@ function Assert-Prereq {
     }
 
     if (Get-Command npm -ErrorAction SilentlyContinue) {
-        Write-Ok "Node $(node --version) / npm $(npm --version)"
+        # Node 버전을 두 단계로 본다. make.sh 의 check_node_version 과 같은 규칙이다.
+        #   하한(web/package.json engines) 미만 -> 실패. 이 아래로는 Vite 7 이 실제로 안 돈다.
+        #   팀 표준(.nvmrc) 과 다름             -> 경고만. 패치 차이로 설치를 막지 않는다.
+        $current = "$(node --version)" -replace '^v', ''
+        $standard = (Get-Content (Join-Path $Root '.nvmrc') -Raw).Trim()
+
+        if ([version]$current -lt [version]'22.12.0') {
+            Write-Bad "Node $current - 22.12 이상이 필요하다 (web/package.json engines · Vite 7 요구사항)."
+            Write-Host "  nvm install $standard ; nvm use $standard" -ForegroundColor Yellow
+            $missing++
+        }
+        elseif ($current -eq $standard) {
+            Write-Ok "Node v$current (팀 표준) / npm $(npm --version)"
+        }
+        else {
+            Write-Ok "Node v$current / npm $(npm --version)"
+            Write-Host "  팀 표준은 v$standard 다 (.nvmrc). 맞추려면: nvm install $standard ; nvm use $standard" -ForegroundColor Yellow
+        }
     }
     else {
         Write-Bad 'npm 이 PATH 에 없다. https://nodejs.org 에서 LTS 를 설치한다.'

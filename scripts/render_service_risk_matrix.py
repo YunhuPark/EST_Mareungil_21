@@ -17,8 +17,13 @@
 Pillow 가 필요하다. 앱 venv 에는 없으므로(11시간 계획에서 뺀 의존성) 시스템
 Python 으로 돌린다. 렌더 전용이며 앱·테스트는 이 모듈을 import 하지 않는다.
 
-    $env:PYTHONPATH = "C:\\2026_Mareungil"
-    & "$env:LOCALAPPDATA\\Programs\\Python\\Python312\\python.exe" scripts/render_service_risk_matrix.py
+저장소 루트에서 실행한다. 경로를 손으로 적지 않는다.
+
+    # Windows (PowerShell)
+    $env:PYTHONPATH = $PWD; python scripts/render_service_risk_matrix.py
+
+    # macOS · Linux
+    PYTHONPATH=$PWD python3 scripts/render_service_risk_matrix.py
 """
 
 from __future__ import annotations
@@ -191,12 +196,39 @@ def build_rows() -> list[dict]:
 # --- 그리기 ------------------------------------------------------------------
 
 S = 2  # 2배 해상도. route_status_matrix.png 와 같다.
-FONT_DIR = Path(r"C:\Windows\Fonts")
+
+#: 한글 글꼴 후보. (일반, 굵게) 순서이며 **플랫폼별로 이름이 다르다.**
+#: 예전에는 `C:\Windows\Fonts` 를 박아서 macOS 에서 이 스크립트가 죽었다.
+#: 그림은 코드를 실제로 호출해 표를 채우므로(CLAUDE.md 10절) 렌더가 안 되면
+#: 문서와 코드가 조용히 어긋난다 — 글꼴 하나 때문에 그렇게 되지 않도록 한다.
+FONT_CANDIDATES = [
+    # Windows
+    (Path(r"C:\Windows\Fonts") / "malgun.ttf", Path(r"C:\Windows\Fonts") / "malgunbd.ttf"),  # portability-ok: OS 표준 글꼴 경로를 나열하는 것이 이 목록의 목적이다
+    # macOS — AppleSDGothicNeo 는 하나의 파일에 굵기가 들어 있다.
+    (Path("/System/Library/Fonts/AppleSDGothicNeo.ttc"),) * 2,
+    (Path("/Library/Fonts/AppleGothic.ttf"),) * 2,
+    # Linux (Noto CJK)
+    (
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
+    ),
+]
+
+
+def _font_pair() -> tuple[Path, Path]:
+    for regular, bold in FONT_CANDIDATES:
+        if regular.exists() and bold.exists():
+            return regular, bold
+    tried = "\n  ".join(str(r) for r, _ in FONT_CANDIDATES)
+    raise SystemExit(
+        "한글 글꼴을 찾지 못했다. 아래를 확인했다:\n  " + tried + "\n"
+        "다른 경로에 있으면 FONT_CANDIDATES 에 추가한다."
+    )
 
 
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    name = "malgunbd.ttf" if bold else "malgun.ttf"
-    return ImageFont.truetype(str(FONT_DIR / name), size * S)
+    regular, bold_path = _font_pair()
+    return ImageFont.truetype(str(bold_path if bold else regular), size * S)
 
 
 COLS = [

@@ -157,3 +157,30 @@ export const VERIFICATION_LABEL: Record<string, string> = {
   DRAFT_UNVERIFIED: '원출처 미확인 초안',
   DEMO_FIXTURE: '시연용으로 만든 값 (실제 정보 아님)',
 };
+
+/** 공식 통제 대상. */
+export const CLOSURE_KIND_LABEL: Record<string, string> = {
+  ROAD: '도로',
+  UNDERPASS: '지하차도',
+  RIVERSIDE: '하천변',
+  SUBWAY: '지하철',
+};
+
+/**
+ * 통제 범위. RT-11 / 설계서 10.3.
+ *
+ * **`VEHICLE` 을 보행 차단으로 승격하지 않는다.** 차량이 못 지나간다는 것과
+ * 사람이 못 지나간다는 것은 다른 사실이고, 2022-08-08 자료는 보행 통제 여부를
+ * 거의 남기지 않았다. 화면 문구가 그 차이를 그대로 말해야 한다.
+ */
+export const CLOSURE_MODE_LABEL: Record<string, string> = {
+  VEHICLE: '차량 통제 (보행 통제 여부는 확인되지 않음)',
+  PEDESTRIAN: '보행 통제',
+  BOTH: '차량·보행 통제',
+};
+
+/** 프로필 선택지 문구 (M-37). */
+export const PROFILE_LABEL: Record<string, string> = {
+  ELDERLY: '고령자',
+  WITH_CHILD: '아이 동반',
+};

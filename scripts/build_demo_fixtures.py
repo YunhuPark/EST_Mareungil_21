@@ -41,7 +41,22 @@ SCENARIOS = {
 }
 
 # UI 이유 문장에 쓸 후보 피처. 값은 실제로 싣되 기여도(SHAP)는 해커톤 작업으로 남긴다.
-DRIVER_FEATURES = ["rain_past_60m_mm", "rain_past_30m_mm", "level_delta_30m", "level_last"]
+#
+# `rain_past_10m_mm` 은 O-15 확정으로 추가했다(2026-08-16). **등급 축 때문이 아니다** —
+# 등급의 추가 위험신호는 TH-02 하나로 확정됐고 TH-01 은 세지 않는다
+# (`services/decision/service_risk.py` 의 O-15 주석). 이 값이 필요한 곳은 **행동 축**이다:
+# 규칙 9 가 "TH-01(10분 >= 5mm) 또는 TH-02(60분 >= 40mm) 초과 -> WAIT" 이고 그 OR 묶음은
+# 확정 규칙이므로(요구사항 167 · 회귀 케이스 R14), 행동 엔진이 10분 강우를 받지 못하면
+# 확정된 규칙을 구현할 수 없다.
+#
+# 계약 필드 추가가 아니라 `drivers[]` 배열의 항목 하나라 G0 이후 필드 추가 금지에 걸리지 않는다.
+DRIVER_FEATURES = [
+    "rain_past_60m_mm",
+    "rain_past_30m_mm",
+    "rain_past_10m_mm",
+    "level_delta_30m",
+    "level_last",
+]
 
 
 def grade_note() -> str:

@@ -342,6 +342,97 @@ body {
   font-weight: 600;
 }
 
+/* 프로필 선택 (M-37). 체크박스는 손가락으로 눌러야 하므로 --tap 을 지킨다. */
+.picker__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.picker__check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: var(--tap);
+  padding: 0 0.8rem;
+  font-size: 0.95rem;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.picker__check input {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* --- 공식정보 (M-24 / M-36) ---------------------------------------------- */
+
+.official__asof,
+.official__empty {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.official__ok,
+.official__warn,
+.official__order {
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  border: 1px solid var(--line);
+}
+
+.official__ok {
+  color: var(--ink-soft);
+}
+
+/* 확인되지 않은 값과 지어낸 값은 파선으로 구분해 표시한다. */
+.official__warn {
+  background: var(--stub-bg);
+  border-style: dashed;
+  font-weight: 600;
+}
+
+.official__order {
+  background: var(--warn-bg);
+  border-color: var(--caution);
+  font-weight: 700;
+}
+
+.official__head {
+  margin: 0.7rem 0 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.official__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.official__list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.official__time,
+.official__meta {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
 /* --- 수동 재판단 (M-18) --------------------------------------------------- */
 
 .reassess__hint {

@@ -94,8 +94,8 @@
           "geom_ref": { "type": "string" },
           "label": { "type": ["string", "null"] },
           "observed_at": {
-            "type": "string",
-            "description": "M-36 event_time. 침수가 실제로 관측된 시각이다."
+            "type": ["string", "null"],
+            "description": "M-36 event_time. 침수가 실제로 관측된 시각이다. **required 이지만 null 을 허용한다**: 2022-08-08 확인 자료 대부분이 현장사진 캡션·보도로 '그날 밤 침수'까지만 말하고 관측 분 시각을 남기지 않았다(sources/2022-08-08_gangnam_verified_events.csv 의 FL-001~FL-005). 그 시각을 지어내지 않고 null 로 둔다. 필드 자체는 빼지 않는다 - '확인하지 않았다'와 '해당 없음'을 구분하기 위해서다. observed_at 이 null 인 항목은 특정 재생 시각의 경로·목적지 차단 근거로 쓰지 않는다."
           },
           "available_time": { "$ref": "#/$defs/available_time" },
           "source": { "type": ["string", "null"] },

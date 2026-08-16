@@ -219,6 +219,16 @@ TS_LABEL_MAPS = [
         "VERIFICATION_LABEL",
         ("official_info.schema.json", "properties", "verification"),
     ),
+    # 공식정보 카드가 통제 목록을 화면에 그리기 시작하면서 두 값이 사용자 눈에
+    # 닿는다. 라벨이 없으면 화면에 ROAD·VEHICLE 이 그대로 보인다.
+    (
+        "CLOSURE_KIND_LABEL",
+        ("official_info.schema.json", "properties", "closures", "items", "properties", "kind"),
+    ),
+    (
+        "CLOSURE_MODE_LABEL",
+        ("official_info.schema.json", "properties", "closures", "items", "properties", "mode"),
+    ),
 ]
 
 

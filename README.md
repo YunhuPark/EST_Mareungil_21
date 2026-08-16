@@ -20,17 +20,43 @@
 
 ### 필요한 것
 
-- Python 3.11 이상 (확인 환경 3.13.9)
-- Node.js 20 이상 (확인 환경 v24.14.1)
-- Windows PowerShell
+| | 버전 | 왜 |
+|---|---|---|
+| Python | **3.11 이상** | `pyproject.toml` `requires-python` |
+| Node.js | **팀 표준 v24.19.0** (하한 22.12) | 표준은 [`.nvmrc`](.nvmrc), 하한은 `web/package.json` `engines`. 22.12 미만은 Vite 7 이 안 돈다 |
+| 셸 | Windows PowerShell **또는** macOS·Linux bash | 두 플랫폼 모두 지원한다 |
+
+**Node 버전은 `nvm` 으로 맞추는 것이 가장 빠르다.** 저장소 루트에서:
+
+```bash
+nvm install && nvm use          # macOS · Linux — .nvmrc 를 자동으로 읽는다
+```
+
+```powershell
+nvm install 24.19.0 ; nvm use 24.19.0   # Windows (nvm-windows 는 .nvmrc 를 안 읽는다)
+```
+
+버전이 표준과 다르면 `setup` 이 경고만 하고 진행한다. **하한 미만이면 멈춘다** —
+그 상태로는 프론트 빌드가 어차피 실패하기 때문이다.
 
 ### 1. 설치 (최초 1회) — 이 한 줄이면 끝난다
 
 ```powershell
+# Windows
 git clone <저장소 주소>
 cd mareungil
 .\make.ps1 setup
 ```
+
+```bash
+# macOS · Linux
+git clone <저장소 주소>
+cd mareungil
+./make.sh setup
+```
+
+**두 스크립트는 태스크 이름과 검증 단계가 같다.** 한쪽에만 명령이 생기면
+`tests/test_portability.py` 가 실패하므로 플랫폼별로 안내가 갈리지 않는다.
 
 `setup` 이 세 가지를 이어서 한다.
 
@@ -53,10 +79,12 @@ cd mareungil
 
 ```powershell
 .\make.ps1 api      # 백엔드   http://127.0.0.1:8000/docs
+.\make.ps1 web      # 프론트   http://127.0.0.1:5173
 ```
 
-```powershell
-.\make.ps1 web      # 프론트   http://127.0.0.1:5173
+```bash
+./make.sh api       # 백엔드   http://127.0.0.1:8000/docs
+./make.sh web       # 프론트   http://127.0.0.1:5173
 ```
 
 화면에 **위험 등급 · 현재 위치 · 권고 행동 · 재생 시각 · 119 버튼 · 면책 문구**가 보이면 성공이다.
@@ -83,6 +111,24 @@ cd mareungil
 
 .\make.ps1 check           # 위 검증 전부
 ```
+
+macOS·Linux 는 같은 이름으로 `./make.sh <task>` 를 쓴다.
+
+### 플랫폼 차이로 깨지지 않게 해 둔 것
+
+Windows·macOS 를 섞어 쓰므로, **한쪽에서만 터지는** 문제를 미리 막아 두었다.
+전부 `tests/test_portability.py` 가 지키며 어기면 `check` 에서 빨개진다.
+
+| 문제 | 어떻게 막았나 |
+|---|---|
+| 줄바꿈(CRLF/LF) 차이로 diff·실행이 깨짐 | [`.gitattributes`](.gitattributes) 가 저장소 전체에 규칙을 건다. **개인 `core.autocrlf` 설정에 맡기지 않는다.** `*.sh` 는 LF, `*.ps1`·`*.bat` 는 CRLF 로 못박는다 |
+| Node 버전이 달라 빌드가 다르게 동작 | [`.nvmrc`](.nvmrc) 가 팀 표준, `web/package.json` `engines` 가 하한. 두 값이 어긋나면 테스트가 실패한다 |
+| 절대경로(`C:\...`)를 코드에 박아 남이 못 돌림 | 검사가 소스 전체를 훑는다. 경로는 `Path(__file__)` 기준 상대경로로만 만든다 |
+| 한쪽 실행 스크립트에만 명령이 생김 | `make.ps1` 과 `make.sh` 의 태스크 목록·검증 단계를 대조한다 |
+
+> 이 검사를 처음 넣었을 때 **실제로 절대경로 네 곳이 걸렸다.**
+> `scripts/mareungil/config.py` 의 `ROOT = Path(r"C:\2026_Mareungil")` 이 대표적이며,
+> 그 상태로는 다른 팀원이 데이터 파이프라인을 아예 돌릴 수 없었다.
 
 ### 다음에 읽을 것
 

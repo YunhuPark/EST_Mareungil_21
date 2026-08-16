@@ -20,12 +20,18 @@ import { ActionCard } from './components/ActionCard';
 import { DestinationPicker } from './components/DestinationPicker';
 import { EmergencyBar } from './components/EmergencyBar';
 import { MapPanel } from './components/MapPanel';
+import { OfficialPanel } from './components/OfficialPanel';
+import { ProfilePicker } from './components/ProfilePicker';
 import { ReasonList } from './components/ReasonList';
 import { ReassessBar } from './components/ReassessBar';
 import { RouteCard } from './components/RouteCard';
 import { TopStatus } from './components/TopStatus';
-import { VERIFICATION_LABEL } from './contracts/enums';
-import type { AssessResponse, DestinationList, ScenarioList } from './contracts/types';
+import type {
+  AssessResponse,
+  DestinationList,
+  Profile,
+  ScenarioList,
+} from './contracts/types';
 
 const DEFAULT_SCENARIO = 'DS-S1';
 
@@ -43,19 +49,25 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
   const [scenario, setScenario] = useState(DEFAULT_SCENARIO);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // M-37. 프로필은 화면 상태로 들고 있다가 요청에 실어 보낸다. UI 가 프로필로
+  // 순서를 다시 매기지 않는다 — 정책 재구현 금지(CLAUDE.md 10절).
+  const [profiles, setProfiles] = useState<Profile[]>([]);
 
-  const load = useCallback(async (scenarioId: string, destinationId?: string) => {
-    setBusy(true);
-    try {
-      setData(await fetchAssess(scenarioId, destinationId));
-      setScenario(scenarioId);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (scenarioId: string, destinationId?: string, picked: Profile[] = []) => {
+      setBusy(true);
+      try {
+        setData(await fetchAssess(scenarioId, destinationId, picked));
+        setScenario(scenarioId);
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     // 테스트에서 initialData 를 주면 네트워크를 부르지 않는다.
@@ -89,7 +101,6 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
   // M-15. 강조는 EMERGENCY 승격이 아니다 — 행동은 여전히 EVACUATE 다.
   const emphasize119 =
     decision.primary_action === 'EVACUATE' && EVACUATE_ROUTE_FAILURE.includes(route.status);
-  const verification = data.official?.verification;
 
   return (
     <div className="page">
@@ -107,13 +118,6 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
           </p>
         )}
 
-        {/* M-24 / M-36. 공식정보를 어떤 상태로 받았는지 숨기지 않는다. */}
-        {verification && verification !== 'VERIFIED_SOURCE' && (
-          <p className="badge badge--stub">
-            공식정보: {VERIFICATION_LABEL[verification] ?? verification}
-          </p>
-        )}
-
         <ActionCard
           action={decision.action}
           primaryAction={decision.primary_action}
@@ -123,17 +127,33 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
 
         <ReasonList reasons={decision.reasons} />
 
+        {/*
+          M-24 / M-36. 공식정보를 어떤 상태로 받았는지, 그리고 이 재생 시각에
+          무엇이 공개돼 있었는지를 숨기지 않는다. 시각 필터는 서버가 건다.
+        */}
+        <OfficialPanel official={data.official} clockLabel={clock.label} />
+
         <ReassessBar
           list={scenarios}
           current={scenario}
-          onReassess={(id) => void load(id, decision.user_state.destination?.id)}
+          onReassess={(id) => void load(id, decision.user_state.destination?.id, profiles)}
           disabled={busy}
         />
 
         <DestinationPicker
           list={list}
           selected={decision.user_state.destination}
-          onSelect={(id) => void load(scenario, id)}
+          onSelect={(id) => void load(scenario, id, profiles)}
+          disabled={busy}
+        />
+
+        <ProfilePicker
+          selected={profiles}
+          applied={route.profile_applied ?? []}
+          onChange={(picked) => {
+            setProfiles(picked);
+            void load(scenario, decision.user_state.destination?.id, picked);
+          }}
           disabled={busy}
         />
 

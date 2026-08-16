@@ -95,3 +95,25 @@ def apply_destination(response: dict[str, Any], point: dict[str, Any]) -> dict[s
             "비워 두었다. 지어낸 값을 표시하지 않는다."
         )
     return out
+
+
+def apply_profiles(response: dict[str, Any], profiles: list[str]) -> dict[str, Any]:
+    """M-37. 사용자가 고른 프로필을 응답에 반영한다.
+
+    회의는 고령자·아이동반을 MVP 에 **유지**하고 우회 상한 1.15 · 경사 가중 1.5 를
+    정책값으로 쓰기로 확정했다. 다만 두 값이 하는 일은 **이미 안전이 허용된 후보
+    안에서 순서를 조정하는 것**뿐이고, 안전 기준이나 위험구간 제외 기준을 완화하지
+    않는다.
+
+    그리고 지금은 **조정할 대상 자체가 없다.** 경로 비교 엔진이 STUB 이라 후보
+    순서를 만들지 않으므로 `route.profile_applied` 는 `[]` 로 둔다.
+    `user_state.profiles` 는 채우고 `profile_applied` 는 비는 이 어긋남이 현재
+    상태를 정확히 말한다 — 고른 것은 전달됐고 아직 반영되지는 않았다. 화면이
+    같은 문장을 쓴다(ProfilePicker).
+
+    지어낸 순서를 넣지 않는다. 넣으면 검증되지 않은 값(1.15·1.5)이 실제로 경로를
+    바꾼 것처럼 보인다.
+    """
+    out = json.loads(json.dumps(response))
+    out["decision"]["user_state"]["profiles"] = list(profiles)
+    return out

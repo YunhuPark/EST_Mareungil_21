@@ -124,9 +124,17 @@ G0 전까지 `action_decision.schema.json` 을 검증하는 픽스처가 **하�
 
 ## `official/` — 공식정보
 
-**값이 비어 있고, 그건 의도한 것이다.** 원출처를 확인하기 전에 경보 시각을 지어내지 않는다.
-`verification: "DRAFT_UNVERIFIED"` 인 동안 이 내용을 "공식 확인된 사실"로 말하지 않는다.
-자세한 것은 [official/README.md](./official/README.md).
+**파일이 둘이고, 나뉘어 있는 것이 핵심이다.**
+
+- `official_0808.json` — O-11 로 원출처를 확인한 **실제 값**(`VERIFIED_SOURCE`).
+  대조표는 `official/sources/2022-08-08_gangnam_verified_events.csv` 30건이다.
+- `official_demo_destination_blocked.json` — `DS-S6` 시연용 **합성** 통제
+  (`DEMO_FIXTURE`). 실제 자료로는 그 화면이 만들어지지 않기 때문에 따로 뒀다.
+
+`verification` 은 파일 단위 단일 값이라 둘을 합치면 지어낸 값이 확인된 사실로
+읽힌다(M-24·M-36). 각 항목은 `available_time`(공개시각)을 갖고, DS-* 응답에는
+**그 재생 시각에 이미 공개돼 있던 것만** 실린다. 자세한 것은
+[official/README.md](./official/README.md).
 
 ## `invalid/` — 반드시 거부되어야 하는 조합
 

@@ -153,7 +153,10 @@
             "properties": {
               "geom_ref": { "type": "string" },
               "label": { "type": ["string", "null"] },
-              "observed_at": { "type": "string" },
+              "observed_at": {
+                "type": ["string", "null"],
+                "description": "M-36 event_time. 침수가 실제로 관측된 시각이다. official_info@v1 과 같은 규칙으로 **required 이지만 null 을 허용한다** - 2022-08-08 확인 자료 대부분이 관측 분 시각을 남기지 않아 지어내지 않고 null 로 둔다. 소비자 사본이므로 생산자 스키마와 어긋나면 official_0808.json 을 주입할 수 없다(C-11·C-21)."
+              },
               "available_time": {
                 "type": ["string", "null"],
                 "description": "M-36. 이 침수정보가 공개된 시각. 관측시각(observed_at)과 구분한다."

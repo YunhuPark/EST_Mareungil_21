@@ -3,8 +3,9 @@
 이 파일은 사람과 Claude Code가 **같은 규칙으로** 이 저장소를 고치기 위한 기준이다.
 코드를 고치기 전에 이 문서를 먼저 읽는다.
 
-> 최종 갱신: 2026-08-16 · 2026-08-16 최종 회의 확정사항(M-01~M-39)을 계약·코드·화면에
-> 반영한 뒤 다시 썼다. 검증 규모는 **계약 픽스처 20건 · Python 179건 · 프론트 15건**이다.
+> 최종 갱신: 2026-08-16 · 최종 회의 확정사항(M-01~M-39)을 반영한 뒤, 같은 날 O-11(공식정보
+> 실제 값)·O-12(데모 시각 21:40)·O-15(`DANGER` 추가 위험신호)를 닫으면서 다시 썼다.
+> 검증 규모는 **계약 픽스처 23건 · Python 208건 · 프론트 25건**이다.
 
 ## 1. 프로젝트 한 문장
 
@@ -74,7 +75,7 @@ Python이 소비하지 않아 `enums.py` 사본이 없는 값들이다. **사본
 |---|---|---|
 | `official.verification` | `VERIFIED_SOURCE` `DRAFT_UNVERIFIED` `DEMO_FIXTURE` | 스키마 3곳 사본 일치 + `VERIFICATION_LABEL` 커버리지 |
 | `candidates[].excluded_by` | `OFFICIAL_CLOSURE` `CONFIRMED_FLOODING` `PROFILE_CONSTRAINT` `OUT_OF_SCOPE` `SHELTER_FULL` `SHELTER_CLOSED` `SHELTER_INACCESSIBLE` | `EXCLUDED_BY_LABEL` 커버리지 |
-| `closures[].kind` · `closures[].mode` | `ROAD` `UNDERPASS` `RIVERSIDE` `SUBWAY` / `VEHICLE` `PEDESTRIAN` `BOTH` | 스키마 2곳 사본 일치 |
+| `closures[].kind` · `closures[].mode` | `ROAD` `UNDERPASS` `RIVERSIDE` `SUBWAY` / `VEHICLE` `PEDESTRIAN` `BOTH` | 스키마 2곳 사본 일치 + `CLOSURE_KIND_LABEL`·`CLOSURE_MODE_LABEL` 커버리지 |
 | `hazards[].kind` · `target.kind` · `source_kind` | — | 사본이 하나뿐. TypeScript union 타입이 컴파일러로 잡는다 |
 
 **여기에 값을 더하면 라벨 표도 같이 채운다.** 채우지 않으면 화면에 enum 코드가 그대로 보인다.
@@ -119,7 +120,8 @@ Python이 소비하지 않아 `enums.py` 사본이 없는 값들이다. **사본
 
 ## 6. 로컬 실행·검증 명령
 
-Windows PowerShell 기준. 전부 저장소 루트에서 실행한다.
+전부 저장소 루트에서 실행한다. **Windows는 `make.ps1`, macOS·Linux는 `make.sh`이며
+태스크 이름과 검증 단계가 같다.**
 
 ```powershell
 .\make.ps1 setup       # clone 직후 이것 하나 — 사전 확인 + 설치 + 검증
@@ -135,8 +137,31 @@ Windows PowerShell 기준. 전부 저장소 루트에서 실행한다.
 .\make.ps1 check       # 위 검증 전부 (커밋·PR 전에 이것만 통과하면 된다)
 ```
 
-**PR을 올리기 전에 `.\make.ps1 check`가 통과해야 한다.**
-`api`와 `check`는 출력을 `logs\`에 남긴다. 장애 대응은 [docs/OPERATIONS.md](docs/OPERATIONS.md).
+**PR을 올리기 전에 `.\make.ps1 check`(또는 `./make.sh check`)가 통과해야 한다.**
+`api`와 `check`는 출력을 `logs/`에 남긴다. 장애 대응은 [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
+### 두 실행 스크립트를 함께 고친다
+
+`make.ps1`에 태스크를 더하면 `make.sh`에도 더한다. 하나만 고치면
+`tests/test_portability.py`가 실패한다 — 한쪽에만 명령이 생기면 다른 플랫폼
+팀원은 그 명령을 쓸 수 없고, 보통 아무도 그 사실을 모른다.
+
+## 6.1 플랫폼 이식성 — 한쪽에서만 터지는 것들
+
+Windows·macOS를 섞어 쓴다. 아래는 **만든 사람 기계에서는 멀쩡한** 종류라
+사람이 눈으로 잡지 못한다. `tests/test_portability.py`가 지킨다.
+
+| 규칙 | 정본 |
+|---|---|
+| 줄바꿈은 저장소가 정한다. **개인 `core.autocrlf`에 맡기지 않는다** | `.gitattributes` — `*.sh`는 LF, `*.ps1`·`*.bat`는 CRLF |
+| Node 팀 표준은 **v24.19.0**, 하한은 **22.12** | `.nvmrc` / `web/package.json` `engines` |
+| **절대경로를 코드에 박지 않는다** | 경로는 `Path(__file__)` 기준으로만 만든다 |
+
+- `.sh`가 CRLF로 저장되면 macOS에서 `$'\r': command not found`로 죽는다. `.bat`은 반대다.
+- 일부러 둔 플랫폼별 경로(글꼴 후보 등)는 그 줄에 **`portability-ok: <사유>`**를 적는다.
+  사유 없이 예외를 만들지 않는다.
+- 주석 안의 절대경로는 통과시킨다 — 실행을 깨뜨리지 않고, "예전에는 이랬다"를
+  적어두는 것이 다음 사람에게 필요하다.
 
 ## 7. 비밀정보와 대용량 데이터
 
@@ -184,13 +209,10 @@ Windows PowerShell 기준. 전부 저장소 루트에서 실행한다.
 
 > **임의의 안전정책을 만들어 넣지 않는다.**
 
-**2026-08-16 최종 회의가 OPEN 7개를 닫았다.** 남은 것은 넷이며 목록은
-[docs/DECISIONS.md](docs/DECISIONS.md) 3절에 있다.
+**2026-08-16 최종 회의가 OPEN 7개를 닫았고, 같은 날 O-11·O-12·O-15 가 닫혔다.**
+남은 것은 하나이며 목록은 [docs/DECISIONS.md](docs/DECISIONS.md) 3절에 있다.
 
-- O-11 공식정보 픽스처의 실제 값 (2022-08-08 경보·통제 원출처 미확인)
-- O-12 데모 재생 시각 확정
 - O-13 목적지 지정 지점 목록 확정 (좌표 `APPROX_UNVERIFIED`)
-- O-15 `DANGER`의 '추가 위험신호' 집합
 
 규칙:
 
@@ -202,6 +224,7 @@ Windows PowerShell 기준. 전부 저장소 루트에서 실행한다.
 - 미확정 항목은 스키마 `description`과 코드 주석에 `OPEN:` 접두사로 표시한다.
 - 값이 필요해서 임시로 골랐다면 `OPEN` + 결정 기한 + 임시값임을 함께 적는다. 조용히 확정하지 않는다.
 - 강우 기준값(TH-01/TH-02)이 만드는 결과는 **`WAIT`까지**다. 강우량만으로 `EVACUATE`를 반환하지 않는다. 강우는 등급 축에서 AI `HIGH`와 함께 `DANGER`를 만들 수 있지만 **단독으로는 `CAUTION`을 넘지 못한다.**
+- **두 기준값이 두 축에서 다르게 쓰인다**(O-15 → C-27). 행동 축(규칙 9 → `WAIT`)은 `TH-01 OR TH-02`이고, **등급 축의 `DANGER` 추가 신호는 TH-02 하나뿐**이다. TH-01은 강우 사건 22개 중 14개에서 걸려 너무 흔해서, 등급에 넣으면 `DANGER`가 `AI HIGH`와 같아진다. 그래서 화면에 **`CAUTION` + `WAIT`이 함께 나오는 것은 의도된 조합**이다.
 
 ## 10. 모듈 책임과 의존 방향
 

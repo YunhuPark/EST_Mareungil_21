@@ -202,6 +202,47 @@ export interface SafeRoute {
   _stub?: string;
 }
 
+/**
+ * 공식정보 항목 (`official_info@v1`).
+ *
+ * **M-36. 여기 실려 오는 것은 재생 시각에 이미 공개돼 있던 항목뿐이다.** 필터는
+ * 서버(`services/decision/official.py`)가 걸며 UI 는 다시 거르지 않는다 —
+ * 두 곳에서 시각을 판정하면 화면과 판단이 어긋난다.
+ */
+export interface OfficialAlert {
+  type: string;
+  /** 실제 발령시각. 공개시각(available_time)과 다른 축이다. */
+  issued_at: string;
+  /** F-14. 해제됐다는 사실만으로 위험 표시를 낮추지 않는다. */
+  cleared_at?: string | null;
+  available_time?: string | null;
+  region?: string | null;
+  source?: string | null;
+}
+
+export interface OfficialClosure {
+  kind: 'ROAD' | 'UNDERPASS' | 'RIVERSIDE' | 'SUBWAY';
+  geom_ref: string;
+  label?: string | null;
+  /** RT-11. VEHICLE 을 보행 차단으로 승격하지 않는다. */
+  mode: 'VEHICLE' | 'PEDESTRIAN' | 'BOTH';
+  since?: string | null;
+  until?: string | null;
+  available_time?: string | null;
+  /** O-07. 목적지 차단의 유일한 근거다. 좌표 거리로 추정하지 않는다. */
+  blocks_destination_ids?: string[];
+}
+
+export interface ConfirmedFlooding {
+  geom_ref: string;
+  label?: string | null;
+  /** null 은 '관측 분 시각을 확인하지 못했다'는 뜻이다. 지어내지 않는다(M-36). */
+  observed_at: string | null;
+  available_time?: string | null;
+  source?: string | null;
+  blocks_destination_ids?: string[];
+}
+
 export interface AssessResponse {
   contract_version: string;
   /** FIXTURE 인 동안은 모델이 지금 계산한 결과가 아니다. */
@@ -217,9 +258,9 @@ export interface AssessResponse {
    */
   official?: {
     evacuation_order: boolean;
-    alerts: unknown[];
-    closures: unknown[];
-    confirmed_flooding?: unknown[];
+    alerts: OfficialAlert[];
+    closures: OfficialClosure[];
+    confirmed_flooding?: ConfirmedFlooding[];
     /** 공식정보 스냅샷 시각. 화면 시각은 clock.label 이 담당하므로 직접 찍지 않는다. */
     asof?: string;
     /**

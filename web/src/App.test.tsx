@@ -16,13 +16,16 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { App } from './App';
+import { ProfilePicker } from './components/ProfilePicker';
 import { ReassessBar } from './components/ReassessBar';
 import fixture from '../../contracts/fixtures/demo/DS-S1.assess_response.json';
+import blockedDestination from '../../contracts/fixtures/demo/DS-S6.assess_response.json';
 import shelterSwitch from '../../contracts/fixtures/demo/DS-S7.assess_response.json';
 import noSafePoint from '../../contracts/fixtures/demo/DS-S8.assess_response.json';
 import type { AssessResponse } from './contracts/types';
 
 const data = fixture as unknown as AssessResponse;
+const destinationBlocked = blockedDestination as unknown as AssessResponse;
 const s7 = shelterSwitch as unknown as AssessResponse;
 const s8 = noSafePoint as unknown as AssessResponse;
 
@@ -160,5 +163,103 @@ describe('경로가 실패했을 때 (M-15 · M-16 · M-32)', () => {
     render(<App initialData={noRoute} />);
     expect(screen.getByText(/안전이 확인되지 않은 경로로 이동하지 마세요/)).toBeDefined();
     expect(screen.queryByText(/다른 목적지를 선택해 주세요/)).toBeNull();
+  });
+});
+
+describe('공식정보 (O-11 · M-24 · M-36)', () => {
+  it('그 시각에 공개돼 있던 경보를 화면에서 볼 수 있다', () => {
+    // DS-S7 은 21:40 재생이다. 호우경보(12:50 발효)는 이미 공개돼 있었다.
+    render(<App initialData={s7} />);
+    expect(screen.getByRole('heading', { name: '공식정보' })).toBeDefined();
+    expect(screen.getByText('호우경보')).toBeDefined();
+  });
+
+  it('그 시각에 공개돼 있지 않던 통제를 화면에 올리지 않는다', () => {
+    // 그날 강남 도로 통제 보도는 전부 22:01 이후 송고다. 21:40 화면은 몰라야 한다.
+    expect(s7.official?.closures).toEqual([]);
+    render(<App initialData={s7} />);
+    expect(screen.queryByRole('heading', { name: '통제' })).toBeNull();
+  });
+
+  it('원출처를 확인한 값과 시연용으로 만든 값을 구분해 표시한다', () => {
+    const { unmount } = render(<App initialData={s7} />);
+    expect(screen.getByText('원출처 확인됨')).toBeDefined();
+    unmount();
+
+    // DS-S6 의 통제는 실제 기록이 아니라 시연용 합성값이다.
+    expect(destinationBlocked.official?.verification).toBe('DEMO_FIXTURE');
+    render(<App initialData={destinationBlocked} />);
+    expect(screen.getByText(/시연용으로 만든 값/)).toBeDefined();
+  });
+
+  it('관측 시각을 모르는 침수는 모른다고 적는다', () => {
+    // 2022-08-08 자료 대부분이 '그날 밤'까지만 말하고 분 시각을 남기지 않았다.
+    const flooding = s7.official?.confirmed_flooding ?? [];
+    expect(flooding.some((f) => f.observed_at === null)).toBe(true);
+    render(<App initialData={s7} />);
+    expect(screen.getAllByText('관측 시각 확인되지 않음').length).toBeGreaterThan(0);
+  });
+
+  it('RT-11. 차량 통제를 보행 통제로 적지 않는다', () => {
+    const vehicleOnly = {
+      ...data,
+      official: {
+        ...data.official!,
+        closures: [
+          {
+            kind: 'ROAD' as const,
+            geom_ref: 'TEST-R-001',
+            label: '검사용 구간',
+            mode: 'VEHICLE' as const,
+            available_time: data.clock.event_time,
+          },
+        ],
+      },
+    };
+    render(<App initialData={vehicleOnly} />);
+    expect(screen.getByText(/차량 통제 \(보행 통제 여부는 확인되지 않음\)/)).toBeDefined();
+  });
+});
+
+describe('프로필 (M-37)', () => {
+  it('고령자·아이 동반을 고를 수 있다', () => {
+    render(<App initialData={data} />);
+    expect(screen.getByLabelText('고령자')).toBeDefined();
+    expect(screen.getByLabelText('아이 동반')).toBeDefined();
+  });
+
+  it('검증값이 아니라 팀 합의값이라고 적는다', () => {
+    render(<App initialData={data} />);
+    expect(screen.getByText(/팀이 합의한 값이며 근거 데이터로 확인한 값이 아닙니다/)).toBeDefined();
+  });
+
+  it('안전 기준을 완화하지 않는다고 적는다', () => {
+    render(<App initialData={data} />);
+    expect(screen.getByText(/위험구간을 빼는 기준은 그대로/)).toBeDefined();
+  });
+
+  it('골랐지만 아직 반영되지 않았다는 사실을 숨기지 않는다', () => {
+    // 경로 비교 엔진이 STUB 이라 route.profile_applied 가 비어 있다.
+    // ReassessBar 와 같은 방식으로 컴포넌트만 렌더링한다 — App 을 통해 누르면
+    // 재요청이 나가고 그 응답이 이 검사가 보려는 것을 가린다.
+    expect(data.route.profile_applied).toEqual([]);
+
+    const { unmount } = render(
+      <ProfilePicker selected={[]} applied={[]} onChange={() => {}} />,
+    );
+    expect(screen.queryByText(/후보 순서에는 아직 반영되지 않았습니다/)).toBeNull();
+    unmount();
+
+    render(<ProfilePicker selected={['ELDERLY']} applied={[]} onChange={() => {}} />);
+    expect(screen.getByText(/후보 순서에는 아직 반영되지 않았습니다/)).toBeDefined();
+  });
+
+  it('고른 값이 그대로 위로 전달된다', () => {
+    const picked: string[][] = [];
+    render(
+      <ProfilePicker selected={[]} applied={[]} onChange={(p) => picked.push(p)} />,
+    );
+    fireEvent.click(screen.getByLabelText('아이 동반'));
+    expect(picked).toEqual([['WITH_CHILD']]);
   });
 });
