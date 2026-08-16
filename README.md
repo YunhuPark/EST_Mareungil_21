@@ -20,39 +20,71 @@
 
 ### 필요한 것
 
-- Python 3.11 이상 (확인 환경 3.13.9)
-- Node.js 20 이상 (확인 환경 v24.14.1)
-- Windows PowerShell
+| | 버전 | 왜 |
+|---|---|---|
+| Python | **3.11 이상** | `pyproject.toml` `requires-python` |
+| Node.js | **팀 표준 v24.19.0** (하한 22.12) | 표준은 [`.nvmrc`](.nvmrc), 하한은 `web/package.json` `engines`. 22.12 미만은 Vite 7 이 안 돈다 |
+| 셸 | Windows PowerShell **또는** macOS·Linux bash | 두 플랫폼 모두 지원한다 |
 
-### 1. 설치 (최초 1회)
+**Node 버전은 `nvm` 으로 맞추는 것이 가장 빠르다.** 저장소 루트에서:
+
+```bash
+nvm install && nvm use          # macOS · Linux — .nvmrc 를 자동으로 읽는다
+```
 
 ```powershell
+nvm install 24.19.0 ; nvm use 24.19.0   # Windows (nvm-windows 는 .nvmrc 를 안 읽는다)
+```
+
+버전이 표준과 다르면 `setup` 이 경고만 하고 진행한다. **하한 미만이면 멈춘다** —
+그 상태로는 프론트 빌드가 어차피 실패하기 때문이다.
+
+### 1. 설치 (최초 1회) — 이 한 줄이면 끝난다
+
+```powershell
+# Windows
 git clone <저장소 주소>
 cd mareungil
-.\make.ps1 install
+.\make.ps1 setup
 ```
 
-Python 가상환경(`.venv`)과 프론트 의존성을 함께 설치한다.
-
-### 2. 전부 잘 되는지 확인
-
-```powershell
-.\make.ps1 check
+```bash
+# macOS · Linux
+git clone <저장소 주소>
+cd mareungil
+./make.sh setup
 ```
 
-계약 검증 · Python 테스트 · TypeScript 검사 · 프론트 테스트 · production build 를 한 번에 돌린다.
-**전부 통과해야 개발을 시작한다.** 여기서 막히면 그대로 팀 시간이 빠진다.
+**두 스크립트는 태스크 이름과 검증 단계가 같다.** 한쪽에만 명령이 생기면
+`tests/test_portability.py` 가 실패하므로 플랫폼별로 안내가 갈리지 않는다.
 
-### 3. 실행
+`setup` 이 세 가지를 이어서 한다.
+
+1. **사전 확인** — Python 3.11 이상과 Node/npm 이 실제로 실행되는지 본다. 없으면 무엇을 설치해야 하는지 알려주고 멈춘다
+2. **설치** — Python 가상환경(`.venv`)과 프론트 의존성. 어느 한 단계라도 실패하면 즉시 멈춘다
+3. **검증** — 계약 검증 · Python 테스트 · TypeScript 검사 · 프론트 테스트 · production build
+
+**"환경 준비 완료" 가 나와야 개발을 시작한다.** 여기서 막히면 그대로 팀 시간이 빠진다.
+
+> `.\make.ps1` 이 실행되지 않고 *"이 시스템에서 스크립트를 실행할 수 없으므로"* 가 뜨면
+> PowerShell 실행 정책 문제다. 창을 하나 열고 아래를 한 번만 실행한다.
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+> ```
+
+### 2. 실행
 
 창 두 개를 띄운다.
 
 ```powershell
 .\make.ps1 api      # 백엔드   http://127.0.0.1:8000/docs
+.\make.ps1 web      # 프론트   http://127.0.0.1:5173
 ```
 
-```powershell
-.\make.ps1 web      # 프론트   http://127.0.0.1:5173
+```bash
+./make.sh api       # 백엔드   http://127.0.0.1:8000/docs
+./make.sh web       # 프론트   http://127.0.0.1:5173
 ```
 
 화면에 **위험 등급 · 현재 위치 · 권고 행동 · 재생 시각 · 119 버튼 · 면책 문구**가 보이면 성공이다.
@@ -63,7 +95,8 @@ Python 가상환경(`.venv`)과 프론트 의존성을 함께 설치한다.
 ### 명령 전체
 
 ```powershell
-.\make.ps1 install         # Python .venv + 프론트 의존성
+.\make.ps1 setup           # clone 직후 이것 하나 (사전 확인 + 설치 + 검증)
+.\make.ps1 install         # 설치만 (검증은 따로 check)
 .\make.ps1 install-model   # 모델 파이프라인 의존성 (AI·데이터 담당만)
 
 .\make.ps1 api             # 백엔드 개발 서버
@@ -78,6 +111,24 @@ Python 가상환경(`.venv`)과 프론트 의존성을 함께 설치한다.
 
 .\make.ps1 check           # 위 검증 전부
 ```
+
+macOS·Linux 는 같은 이름으로 `./make.sh <task>` 를 쓴다.
+
+### 플랫폼 차이로 깨지지 않게 해 둔 것
+
+Windows·macOS 를 섞어 쓰므로, **한쪽에서만 터지는** 문제를 미리 막아 두었다.
+전부 `tests/test_portability.py` 가 지키며 어기면 `check` 에서 빨개진다.
+
+| 문제 | 어떻게 막았나 |
+|---|---|
+| 줄바꿈(CRLF/LF) 차이로 diff·실행이 깨짐 | [`.gitattributes`](.gitattributes) 가 저장소 전체에 규칙을 건다. **개인 `core.autocrlf` 설정에 맡기지 않는다.** `*.sh` 는 LF, `*.ps1`·`*.bat` 는 CRLF 로 못박는다 |
+| Node 버전이 달라 빌드가 다르게 동작 | [`.nvmrc`](.nvmrc) 가 팀 표준, `web/package.json` `engines` 가 하한. 두 값이 어긋나면 테스트가 실패한다 |
+| 절대경로(`C:\...`)를 코드에 박아 남이 못 돌림 | 검사가 소스 전체를 훑는다. 경로는 `Path(__file__)` 기준 상대경로로만 만든다 |
+| 한쪽 실행 스크립트에만 명령이 생김 | `make.ps1` 과 `make.sh` 의 태스크 목록·검증 단계를 대조한다 |
+
+> 이 검사를 처음 넣었을 때 **실제로 절대경로 네 곳이 걸렸다.**
+> `scripts/mareungil/config.py` 의 `ROOT = Path(r"C:\2026_Mareungil")` 이 대표적이며,
+> 그 상태로는 다른 팀원이 데이터 파이프라인을 아예 돌릴 수 없었다.
 
 ### 다음에 읽을 것
 

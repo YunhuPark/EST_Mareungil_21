@@ -858,6 +858,11 @@
       "contribution": null
     },
     {
+      "feature": "rain_past_10m_mm",
+      "value": 0.0,
+      "contribution": null
+    },
+    {
       "feature": "level_delta_30m",
       "value": 0.0,
       "contribution": null

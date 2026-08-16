@@ -13,8 +13,11 @@
 
     "clock": {
       "type": "object",
-      "description": "F-12. UI 는 Date.now() 로 시간을 만들지 않고 label 을 그대로 표시한다.",
-      "required": ["mode", "event_time", "data_age_sec", "stale", "label"],
+      "description": "F-12 / M-08. UI 는 Date.now() 로 시간을 만들지 않고 label 을 그대로 표시한다. M-08 이 요구하는 네 시각과 경과시간을 전부 이 블록이 나른다 - 관측시각·예측 생성시각·예측 대상시각·마지막 갱신시각·data_age_sec. 네 시각은 **required 이지만 null 을 허용한다**: 확인되지 않은 시각을 지어내지 않으면서(M-36) UI 가 '확인되지 않음'을 표시할 자리는 항상 있어야 하기 때문이다. 필드가 아예 없는 것과 값이 null 인 것은 다르다.",
+      "required": [
+        "mode", "event_time", "observed_at", "forecast_issued_at", "forecast_target_at",
+        "last_update_at", "data_age_sec", "stale", "expired", "label"
+      ],
       "additionalProperties": false,
       "properties": {
         "mode": {
@@ -24,12 +27,36 @@
         "event_time": {
           "type": "string",
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
-          "description": "재생 중인 과거 시각. ISO 8601 + 명시적 시간대."
+          "description": "재생 중인 과거 시각. ISO 8601 + 명시적 시간대. 화면의 '지금'에 해당한다."
         },
-        "data_age_sec": { "type": "integer", "minimum": 0 },
+        "observed_at": {
+          "type": ["string", "null"],
+          "description": "M-08 관측시각. 판단에 쓴 마지막 관측이 실제로 측정된 시각이다."
+        },
+        "forecast_issued_at": {
+          "type": ["string", "null"],
+          "description": "M-08 예측 생성시각. 모델이 이 예측을 만든 시각이며 risk.asof 와 같은 시각을 가리킨다."
+        },
+        "forecast_target_at": {
+          "type": ["string", "null"],
+          "description": "M-08 예측 대상시각. 예측이 겨냥한 미래 시각(= 생성시각 + primary_horizon 분)이다. M-03: 이 시각의 **점 예측**이며 '그 사이에 한 번이라도'가 아니다 - 중간에 치솟았다 가라앉는 형태는 잡지 못한다."
+        },
+        "last_update_at": {
+          "type": ["string", "null"],
+          "description": "M-08 마지막 데이터 갱신시각. 시스템이 자료를 마지막으로 받은 시각이며 관측시각과 다를 수 있다."
+        },
+        "data_age_sec": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "M-08 데이터 경과시간. event_time - last_update_at 이다."
+        },
         "stale": {
           "type": "boolean",
-          "description": "DQ-01. data_age 10분 초과 시 true. 행동을 바꾸지는 않고 지연 라벨만 띄운다."
+          "description": "DQ-01 / M-08. data_age 10분 초과 시 true. **행동을 바꾸지 않고** 지연 라벨만 띄운다."
+        },
+        "expired": {
+          "type": "boolean",
+          "description": "M-08. data_age 30분 초과 시 true. 이 데이터를 판단 근거에서 제외한다. **무조건 WAIT 이 아니다** - 다른 직접 안전신호(고립 신고·지하 물 유입·공식 대피 지시)가 없을 때만 MOVE → WAIT 이며 그 판정은 행동 우선순위가 한다. 20분 단계는 쓰지 않는다(M-08 에서 삭제)."
         },
         "label": {
           "type": "string",
@@ -74,7 +101,7 @@
         },
         "action": {
           "$ref": "#/$defs/action",
-          "description": "UI 에 표시하는 최종 행동. 확정된 후처리는 MOVE + NO_SAFE_ROUTE → WAIT 하나뿐이다."
+          "description": "UI 에 표시하는 최종 행동. **행동이 바뀌는** 후처리는 MOVE + NO_SAFE_ROUTE → WAIT 하나뿐이다(C-01). 나머지 경로 실패 조합은 M-15·M-16 에 따라 1차 행동을 유지하고 실패 사유만 표시하며, 유지에서 벗어나면 아래 allOf 가 거부한다."
         },
         "route_postprocess_applied": {
           "type": "boolean",
@@ -82,7 +109,7 @@
         },
         "service_risk_level": {
           "$ref": "#/$defs/service_risk_level",
-          "description": "축 1. RiskAssessment.area_risk.ai_risk_level (LOW|HIGH) 과 다른 필드다. 레이아웃 분기에는 쓰지 않는다 - 분기는 action 으로 한다."
+          "description": "축 1. RiskAssessment.area_risk.ai_risk_level (LOW|HIGH) 과 다른 필드다. 레이아웃 분기에는 쓰지 않는다 - 분기는 action 으로 한다. 판정 기준은 C-23 이며 단일 구현은 services/decision/service_risk.py 의 classify() 다. action 과 1:1 이 아니다 - 같은 입력에서 각각 산출하므로 같은 등급에 여러 행동이 올 수 있고 그 반대도 된다. DATA_UNAVAILABLE 은 이 축의 값이 아니라 데이터 상태이며, 데이터가 정상이 아니면 등급의 하한이 CAUTION 으로 올라갈 뿐이다."
         },
         "needs_route": {
           "type": "boolean",
@@ -152,13 +179,30 @@
 
     "official": {
       "type": "object",
-      "description": "F-14. 위험도의 하한이며 AI 가 낮출 수 없다.",
+      "description": "F-14. 위험도의 하한이며 AI 가 낮출 수 없다. C-21: 이 블록은 official_info@v1 픽스처(official_0808.json)를 **그대로** 받는다 - asof·verification·source_url·confirmed_flooding 이 빠져 있으면 additionalProperties:false 가 주입을 거부한다. ActionDecision.official 과 같은 규칙이며(C-11), 소비자의 required 는 official_info 의 required 를 넘지 않는다. alerts·closures 항목의 엄밀한 모양은 official_info@v1 이 소유하므로 여기서 다시 강제하지 않는다.",
       "required": ["evacuation_order", "alerts", "closures", "source"],
+      "patternProperties": { "^_": {} },
       "additionalProperties": false,
       "properties": {
         "evacuation_order": { "type": "boolean" },
         "alerts": { "type": "array", "items": { "type": "object" } },
         "closures": { "type": "array", "items": { "type": "object" } },
+        "confirmed_flooding": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "O-07. 확인된 침수 지점. 공식 통제와 함께 목적지 차단의 근거이며 UI 가 사유로 표시한다."
+        },
+        "asof": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
+          "description": "이 공식정보 스냅샷의 재생 시각. 화면 시각은 clock.label 이 담당하므로 UI 가 이 값을 직접 찍지 않는다."
+        },
+        "verification": {
+          "type": "string",
+          "enum": ["VERIFIED_SOURCE", "DRAFT_UNVERIFIED", "DEMO_FIXTURE"],
+          "description": "DRAFT_UNVERIFIED 는 원출처 미확인 초안, DEMO_FIXTURE 는 시연용으로 만든 값이라는 뜻이다(M-24·M-36). UI 는 이 값을 받아 '공식 확인된 사실'로 표시하지 않으며 셋을 각각 다르게 쓴다."
+        },
+        "source_url": { "type": ["string", "null"] },
         "source": { "type": "string" }
       }
     },
@@ -199,6 +243,11 @@
   },
 
   "allOf": [
+    {
+      "$comment": "M-08. 신선도 단계는 10분·30분 둘뿐이고 포함 관계다 - 30분을 넘겼으면 10분도 넘겼다. 두 값이 어긋나면 화면이 '지연 아님'과 '근거 제외'를 동시에 말하게 된다.",
+      "if": { "properties": { "clock": { "properties": { "expired": { "const": true } }, "required": ["expired"] } }, "required": ["clock"] },
+      "then": { "properties": { "clock": { "properties": { "stale": { "const": true } } } } }
+    },
     {
       "$comment": "needs_route 는 1차 행동이 MOVE·EVACUATE 일 때만 true.",
       "if": {
@@ -255,7 +304,7 @@
       "then": { "properties": { "route": { "properties": { "status": { "const": "NOT_REQUIRED" } } } } }
     },
     {
-      "$comment": "F-10 / RT-10. 현재 확정된 유일한 경로 후처리. 나머지 실패 조합(EVACUATE 경로 실패, MOVE+DESTINATION_BLOCKED, MOVE+DATA_UNAVAILABLE)은 OPEN 이므로 여기서 최종 행동을 강제하지 않는다 - G2 안전정책 확정 전까지 자동 전이시키지 않는다는 뜻이다.",
+      "$comment": "F-10 / RT-10 / M-16. 행동이 바뀌는 유일한 경로 후처리다. 나머지 실패 조합은 아래 두 규칙이 '행동 유지'를 강제한다 - 예전에는 OPEN 이라 아무것도 강제하지 않았지만 2026-08-16 회의(M-15·M-16)가 유지를 확정했으므로 이제는 유지에서 벗어나는 것이 계약 위반이다.",
       "if": {
         "properties": {
           "decision": { "properties": { "primary_action": { "const": "MOVE" } }, "required": ["primary_action"] },
@@ -269,6 +318,64 @@
             "properties": {
               "action": { "const": "WAIT" },
               "route_postprocess_applied": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "M-15. EVACUATE 후 시설·경로·데이터 문제가 생겨도 EVACUATE 를 유지한다. EMERGENCY 로 자동 전환하지 않고(C-31) WAIT 으로 하향하지도 않는다 - 우선순위 2·4 로 확정된 EVACUATE 를 경로 사유로 내리면 DQ-05(품질 사유 하향 금지)와 충돌한다. 실패 사유는 route.status 가 이미 구분해 나른다. 예외는 고립 신고뿐이며 그때는 trapped 가드가 EMERGENCY 를 강제한다.",
+      "if": {
+        "properties": {
+          "decision": {
+            "properties": {
+              "primary_action": { "const": "EVACUATE" },
+              "user_state": { "properties": { "trapped": { "const": false } }, "required": ["trapped"] }
+            },
+            "required": ["primary_action", "user_state"]
+          },
+          "route": {
+            "properties": { "status": { "enum": ["NO_SAFE_POINT", "NO_SAFE_ROUTE", "DATA_UNAVAILABLE"] } },
+            "required": ["status"]
+          }
+        },
+        "required": ["decision", "route"]
+      },
+      "then": {
+        "properties": {
+          "decision": {
+            "properties": {
+              "action": { "const": "EVACUATE" },
+              "route_postprocess_applied": { "const": false }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "M-16 / M-08. MOVE + DESTINATION_BLOCKED 와 MOVE + DATA_UNAVAILABLE 은 MOVE 를 유지한다. 막힌 것은 목적지이거나 경로 판단 근거이지 이동 자체가 아니다. **유지가 '기존 목적지로 계속 가라'는 뜻은 아니며** 화면은 경로안내를 중단하고 목적지 재선택을 안내한다 - 그것은 문구의 몫이라 계약에서 강제하지 않는다. 지역 위험 자체는 우선순위 6~9 에서 이미 판정됐다.",
+      "if": {
+        "properties": {
+          "decision": {
+            "properties": {
+              "primary_action": { "const": "MOVE" },
+              "user_state": { "properties": { "trapped": { "const": false } }, "required": ["trapped"] }
+            },
+            "required": ["primary_action", "user_state"]
+          },
+          "route": {
+            "properties": { "status": { "enum": ["DESTINATION_BLOCKED", "DATA_UNAVAILABLE"] } },
+            "required": ["status"]
+          }
+        },
+        "required": ["decision", "route"]
+      },
+      "then": {
+        "properties": {
+          "decision": {
+            "properties": {
+              "action": { "const": "MOVE" },
+              "route_postprocess_applied": { "const": false }
             }
           }
         }
@@ -292,12 +399,58 @@
       }
     },
     {
-      "$comment": "C-06 / F-02. SEVERE 는 공식 정보가 있을 때만 가능하다. AI 는 SEVERE 를 만들 수 없다.",
+      "$comment": "C-06 / F-02 / C-23. SEVERE 는 '즉각적인 안전 대응이 필요한 직접 신호'가 있을 때만 가능하다 - 공식 대피 지시 / 고립 신고 / 지하 + 현장 위험 징후 셋 중 하나. AI 확률은 SEVERE 를 만들 수 없다. 예전 형태는 official **블록의 존재**만 요구했는데 그것은 두 방향으로 틀렸다: (가) 대피 지시가 없어도 공식정보가 붙어 있기만 하면 SEVERE 가 통과했고, (나) 공식정보 없이 고립을 신고한 사용자는 SEVERE 가 될 수 없었다. 자기신고는 공식 데이터와 독립이므로(설계서 9장 우선순위 1·2) 후자가 특히 나쁘다.",
       "if": {
         "properties": { "decision": { "properties": { "service_risk_level": { "const": "SEVERE" } }, "required": ["service_risk_level"] } },
         "required": ["decision"]
       },
-      "then": { "required": ["official"] }
+      "then": {
+        "anyOf": [
+          {
+            "$comment": "공식 대피 지시.",
+            "required": ["official"],
+            "properties": {
+              "official": {
+                "properties": { "evacuation_order": { "const": true } },
+                "required": ["evacuation_order"]
+              }
+            }
+          },
+          {
+            "$comment": "고립 신고. 이 경우 행동은 EMERGENCY 로 고정된다(F-05 가지).",
+            "required": ["decision"],
+            "properties": {
+              "decision": {
+                "properties": {
+                  "user_state": {
+                    "properties": { "trapped": { "const": true } },
+                    "required": ["trapped"]
+                  }
+                },
+                "required": ["user_state"]
+              }
+            }
+          },
+          {
+            "$comment": "지하 + 현장 위험 징후 1개 이상.",
+            "required": ["decision"],
+            "properties": {
+              "decision": {
+                "properties": {
+                  "user_state": {
+                    "properties": {
+                      "context": { "const": "UNDERGROUND" },
+                      "hazard_signs": { "minItems": 1 }
+                    },
+                    "required": ["context", "hazard_signs"]
+                  }
+                },
+                "required": ["user_state"]
+              }
+            }
+          }
+        ]
+      }
     }
   ],
 

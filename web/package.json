@@ -1,6 +1,10 @@
 {
   "name": "mareungil-web",
   "private": true,
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10"
+  },
   "version": "0.1.0",
   "type": "module",
   "description": "마른길 모바일 단일 화면 (교육·시연용)",

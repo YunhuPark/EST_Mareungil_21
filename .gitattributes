@@ -1,0 +1,54 @@
+# 줄바꿈 정규화 — Windows·macOS 혼용 팀의 기준선
+#
+# **개인 `core.autocrlf` 설정에 맡기지 않는다.** 개인 설정은 사람마다 다르고,
+# 다른 사람 화면에서만 재현되는 diff 를 만든다. 이 파일이 저장소 전체에 같은
+# 규칙을 건다.
+#
+# 규칙은 두 층이다.
+#   1. 저장소(index)에는 **항상 LF** 로 넣는다.       -> `text=auto`
+#   2. 작업 트리 줄바꿈은 **깨지는 파일만** 못박는다.  -> `eol=lf` / `eol=crlf`
+#
+# 2번을 파일 종류별로 나누는 이유는, 줄바꿈이 틀리면 **실제로 실행이 실패하는**
+# 파일이 따로 있기 때문이다. `.py`·`.ts`·`.md` 는 어느 쪽이든 돌아가므로 각자
+# 플랫폼 기본값을 쓰게 두고, 아래 두 종류만 고정한다.
+
+# 기본: 텍스트로 판단되는 모든 파일을 LF 로 정규화해 저장한다.
+* text=auto
+
+# --- 줄바꿈이 틀리면 실행이 깨지는 파일 --------------------------------------
+
+# 셸 스크립트는 **반드시 LF**. CRLF 면 macOS·Linux 에서
+#   `./make.sh: line 2: $'\r': command not found`
+# 로 죽는다. Windows 에서 편집해 CRLF 로 저장되는 순간 Mac 팀원이 못 쓴다.
+*.sh            text eol=lf
+
+# Windows 네이티브 스크립트는 **반드시 CRLF**. 특히 `.bat`/`.cmd` 는 cmd.exe 가
+# LF 만 있는 파일에서 레이블·다중행 구문을 잘못 읽는다. `.ps1` 은 LF 로도 돌지만
+# 같은 계열이라 함께 고정해 편집기가 흔들지 않게 한다.
+*.ps1           text eol=crlf
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# --- 손대면 안 되는 파일 -----------------------------------------------------
+
+# 바이너리. 정규화가 닿으면 파일이 깨진다.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.pdf           binary
+*.parquet       binary
+*.xlsx          binary
+*.zip           binary
+*.ico           binary
+*.woff          binary
+*.woff2         binary
+
+# --- 리뷰 편의 ---------------------------------------------------------------
+
+# 락파일은 생성물이다. diff 를 접어서 리뷰에서 신호가 묻히지 않게 한다.
+# (`linguist-generated` 는 GitHub 표시용이며 내용은 그대로 추적된다.)
+web/package-lock.json   linguist-generated=true
+
+# 원문 대조표 CSV 는 사람이 읽는 근거 자료다. 생성물로 접지 않는다.
+contracts/fixtures/official/sources/*.csv   text eol=lf

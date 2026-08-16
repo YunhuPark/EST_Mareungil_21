@@ -1,22 +1,214 @@
 {
-  "_status": "DRAFT_UNVERIFIED",
+  "_status": "VERIFIED_SOURCE",
   "_owner": "기획 PM",
-  "_deadline": "G0 (T+1:30)",
-  "_warning": "형식만 확정한 자리표시자다. 아래 경보·통제 항목은 원출처를 확인하지 않았으므로 발표와 화면에서 '공식 확인된 사실'로 표현하지 않는다. 실제 값을 채우기 전까지 verification=DRAFT_UNVERIFIED 를 유지한다.",
-  "_todo": [
-    "기상청 호우경보 발효·해제 시각을 원출처에서 확인해 alerts 에 채운다.",
-    "2022-08-08 강남·서초 도로 통제 구간을 확인해 closures 에 채운다.",
-    "통제·확인침수와 지정 지점(contracts/destinations.json)의 대응을 blocks_destination_ids 로 잇는다.",
-    "DS-* 데모 시각(설계서 13.2의 20:00·20:10·20:20·20:40·20:55 초안)을 이 파일의 asof 로 확정한다."
+  "_closed": "O-11 (2026-08-16). 원출처 확인 결과를 sources/2022-08-08_gangnam_verified_events.csv 로 받아 채웠다.",
+  "_source_ledger": "contracts/fixtures/official/sources/2022-08-08_gangnam_verified_events.csv — 30건. 이 파일은 그중 계약이 담을 수 있는 항목만 옮긴 것이고, 옮기지 않은 항목의 사유는 아래 _excluded 에 적었다.",
+
+  "_available_time_rule": [
+    "M-36. available_time 은 **공개시각**이고 issued_at·since·observed_at 은 **발생·관측시각**이다. 재생 시각보다 available_time 이 빠르거나 같은 항목만 판단에 쓴다.",
+    "특보(기상·홍수)는 발효와 동시에 공표되므로 available_time = issued_at 이다.",
+    "도로 통제와 확인 침수는 확인 가능한 가장 이른 공개 시점이 **언론 송고시각**이라 그 값을 쓴다. 통제가 21:30 에 시작됐더라도 22:01 에 보도됐다면 21:40 화면은 그것을 몰라야 한다.",
+    "송고시각조차 확인하지 못한 항목은 available_time = null 이며 판단에서 빠진다. 지어내지 않는다.",
+    "**그 결과 21:40 재생 시각에 보이는 공식 통제는 0건이다.** 그날 강남 도로 통제 보도가 전부 22:01 이후 송고됐기 때문이다. 이것은 데이터 누락이 아니라 당시 시민이 알 수 있던 것의 실제 범위이며, 발표에서 그대로 말한다."
   ],
 
-  "source": "fixture:official_0808",
-  "source_url": null,
-  "asof": "2022-08-08T20:00:00+09:00",
-  "verification": "DRAFT_UNVERIFIED",
+  "_evacuation_order_note": "false 는 '공식 대피명령이 없었다'는 단정이 아니다. 원출처(강남구청·연합뉴스)는 구룡마을 주민 대피가 실제로 있었다는 사실만 확인해 주고 대피명령 원문·발령단계·발령시각은 제시하지 않는다(CSV EV-001, formal_evacuation_order=미확인). 계약의 evacuation_order 는 boolean 이라 '미확인'을 담을 수 없으므로 여기 적어 둔다. 다만 확인된 대피는 8/9 11:00 기준 상황이고 재생 시각 21:40 시점에는 아직 일어나지 않았으므로, 이 재생 시각에 한해 false 가 사실과 어긋나지 않는다.",
+
+  "_excluded": [
+    "RS-001~RS-005 서울시 풍수해 비상대응 1·2·3단계 — 아래 _response_stages 로 옮겼다. alerts 에 넣지 않는 이유는 이것이 서울시 **행정 대응 단계**이지 기상·홍수 특보가 아니기 때문이다. 같은 배열에 두면 단계 하향이 경보 해제처럼 읽히고, F-14(해제만을 이유로 위험을 낮추지 않는다)가 다른 축에 적용된다.",
+    "SW-001~SW-004 지하철 영향 — 누수·무정차 통과이고 원출처가 역사 출입 전면폐쇄를 말하지 않는다. closures(kind=SUBWAY)로 옮기면 확인되지 않은 폐쇄를 만들어내게 되므로 _subway 로 남겼다.",
+    "RV-001 탄천 둔치주차장 차량 대피 — '대피시켰다'와 '통제했다'는 다른 사건이고 주차장 명칭·위치·시각이 없다. _riverside 로 남겼다.",
+    "서울시 27개 하천 통제 — 서울시 전체 기준 문장이라 강남구의 특정 하천변 출입구나 보행 통제 시각을 정할 수 없다. _riverside 로 남겼다.",
+    "RF-001·RF-002 강우 관측, HY-001·HY-004 대곡교 수위 — official_info 계약에 관측값을 담는 자리가 없다. 강우는 risk 블록이, 수위는 하천 상태라 어느 쪽도 이 파일 소관이 아니다. _observations 로 남겼다."
+  ],
+
+  "source": "서울특별시 물순환안전국 공식 보고서 · 연합뉴스 · TBS · 서울시 미디어재단 · 강남구청 (원문 대조표: sources/2022-08-08_gangnam_verified_events.csv)",
+  "source_url": "https://mas.smc.seoul.kr/record/appendixDownload.do?key=0e4ffd51e00b3613782e78b385145bd61bd7ce551fdcf6469d7aea8106e159a895151257e1ff0461",
+  "asof": "2022-08-08T21:40:00+09:00",
+  "verification": "VERIFIED_SOURCE",
 
   "evacuation_order": false,
-  "alerts": [],
-  "closures": [],
-  "confirmed_flooding": []
+
+  "alerts": [
+    {
+      "type": "호우주의보",
+      "issued_at": "2022-08-08T08:00:00+09:00",
+      "cleared_at": "2022-08-08T12:50:00+09:00",
+      "available_time": "2022-08-08T08:00:00+09:00",
+      "region": "서울특별시 (강남구 포함)",
+      "source": "서울특별시 물순환안전국 호우피해 현황 및 복구관련 긴급 현황 보고 (CSV WX-001). 종료시각은 해제가 아니라 호우경보 격상 시각이다."
+    },
+    {
+      "type": "호우경보",
+      "issued_at": "2022-08-08T12:50:00+09:00",
+      "cleared_at": "2022-08-10T02:30:00+09:00",
+      "available_time": "2022-08-08T12:50:00+09:00",
+      "region": "서울특별시 (강남구 포함)",
+      "source": "서울특별시 물순환안전국 호우피해 현황 및 복구관련 긴급 현황 보고 (CSV WX-002). 기상청 과거특보 원문이 아니라 서울시 공식 보고서에 기재된 시각이다."
+    },
+    {
+      "type": "홍수주의보",
+      "issued_at": "2022-08-08T21:10:00+09:00",
+      "cleared_at": "2022-08-08T23:10:00+09:00",
+      "available_time": "2022-08-08T21:10:00+09:00",
+      "region": "탄천 대곡교 (강남구 세곡동)",
+      "source": "연합뉴스 · 한강홍수통제소 인용 (CSV HY-002). 하천 상태 정보이며 개별 도로·보행로 통제 근거가 아니다. 종료시각은 홍수경보 격상 시각이다."
+    },
+    {
+      "type": "홍수경보",
+      "issued_at": "2022-08-08T23:10:00+09:00",
+      "cleared_at": "2022-08-10T07:30:00+09:00",
+      "available_time": "2022-08-08T23:10:00+09:00",
+      "region": "탄천 대곡교 (강남구 세곡동)",
+      "source": "TBS · 연합뉴스 (CSV HY-003). 하천 상태 정보이며 개별 도로·보행로 통제 근거가 아니다."
+    }
+  ],
+
+  "closures": [
+    {
+      "kind": "ROAD",
+      "geom_ref": "CSV:CT-001",
+      "label": "남부순환로 학여울역~대치역 — 양방향 차량 통제. 해제시각·보행 통제 여부 미확인. 강남역 반경 1km 밖",
+      "mode": "VEHICLE",
+      "since": "2022-08-08T21:30:00+09:00",
+      "until": null,
+      "available_time": "2022-08-08T22:01:00+09:00",
+      "blocks_destination_ids": []
+    },
+    {
+      "kind": "UNDERPASS",
+      "geom_ref": "CSV:CT-002",
+      "label": "개포지하차도(언주로) — 양방향 차량 통제. 해제시각·보행 통제 여부 미확인. 강남역 반경 1km 밖",
+      "mode": "VEHICLE",
+      "since": "2022-08-08T21:30:00+09:00",
+      "until": null,
+      "available_time": "2022-08-08T22:01:00+09:00",
+      "blocks_destination_ids": []
+    },
+    {
+      "kind": "UNDERPASS",
+      "geom_ref": "CSV:CT-003",
+      "label": "일원지하차도(양재대로) — 양방향 차량 통제. 해제시각·보행 통제 여부 미확인. 강남역 반경 1km 밖",
+      "mode": "VEHICLE",
+      "since": "2022-08-08T21:50:00+09:00",
+      "until": null,
+      "available_time": "2022-08-08T22:01:00+09:00",
+      "blocks_destination_ids": []
+    },
+    {
+      "kind": "ROAD",
+      "geom_ref": "CSV:CT-004",
+      "label": "강남대로 교보타워사거리→논현역 — 논현역 방면 하위 4개 차로 통제. 통제 시작·해제시각·보행 통제 여부 미확인",
+      "mode": "VEHICLE",
+      "since": null,
+      "until": null,
+      "available_time": "2022-08-08T22:01:00+09:00",
+      "blocks_destination_ids": []
+    },
+    {
+      "kind": "ROAD",
+      "geom_ref": "CSV:CT-005",
+      "label": "테헤란로 삼성역~포스코사거리 — 양방향 하위 4개 차로. 통제 시작·해제시각·보행 통제 여부 미확인. 강남역 반경 1km 밖",
+      "mode": "VEHICLE",
+      "since": null,
+      "until": null,
+      "available_time": "2022-08-08T22:01:00+09:00",
+      "blocks_destination_ids": []
+    },
+    {
+      "kind": "ROAD",
+      "geom_ref": "CSV:CT-006",
+      "label": "양재천로 — 서울시 보고서의 주요 위험도로 통제 목록에 포함. 강남구 안의 구간·시작·해제시각·보행 통제 여부가 모두 미확인",
+      "mode": "VEHICLE",
+      "since": null,
+      "until": null,
+      "available_time": null,
+      "blocks_destination_ids": []
+    }
+  ],
+
+  "confirmed_flooding": [
+    {
+      "geom_ref": "CSV:CT-001",
+      "label": "남부순환로 학여울역~대치역 — 양방향 전 차로 침수로 차량 통행 불가. 강남역 반경 1km 밖",
+      "observed_at": "2022-08-08T21:30:00+09:00",
+      "available_time": "2022-08-08T22:01:00+09:00",
+      "source": "연합뉴스 (서울시 교통정보과 인용). 이 자료에서 관측 분 시각이 확인되는 유일한 도로 침수다.",
+      "blocks_destination_ids": []
+    },
+    {
+      "geom_ref": "CSV:FL-002",
+      "label": "강남역 일대 도로·차도 — 하수 역류로 침수. 관측 분 시각과 공식 통제구간 미확인",
+      "observed_at": null,
+      "available_time": "2022-08-08T21:27:00+09:00",
+      "source": "연합뉴스(자치구·소방 인용) · 경향신문. 21:27 은 기사 송고시각이지 침수 발생·관측 시각이 아니다.",
+      "blocks_destination_ids": []
+    },
+    {
+      "geom_ref": "CSV:FL-001",
+      "label": "신사역 일대 도로 — 8일 밤 침수. 관측 분 시각과 공식 통제구간 미확인",
+      "observed_at": null,
+      "available_time": "2022-08-08T22:01:00+09:00",
+      "source": "연합뉴스 현장사진 캡션.",
+      "blocks_destination_ids": []
+    },
+    {
+      "geom_ref": "CSV:CT-005",
+      "label": "테헤란로 삼성역~포스코사거리 — 양방향 하위 4개 차로 침수. 관측 분 시각 미확인. 강남역 반경 1km 밖",
+      "observed_at": null,
+      "available_time": "2022-08-08T22:01:00+09:00",
+      "source": "연합뉴스 (서울시 교통정보과 인용).",
+      "blocks_destination_ids": []
+    },
+    {
+      "geom_ref": "CSV:FL-003",
+      "label": "대치역 인근 도로 — 8일 밤 침수. 관측 분 시각 미확인이며 보행자 공식 통제 근거가 아니다",
+      "observed_at": null,
+      "available_time": "2022-08-09T00:23:00+09:00",
+      "source": "연합뉴스 현장사진 캡션.",
+      "blocks_destination_ids": []
+    },
+    {
+      "geom_ref": "CSV:FL-004",
+      "label": "구룡마을(개포동) 침수 주택 — 8/9 11:00 기준 반지하 등 배수 작업. 침수 시작 시각 미확인",
+      "observed_at": null,
+      "available_time": "2022-08-09T11:00:00+09:00",
+      "source": "연합뉴스(강남구청 인용) · 강남구청 수해 현장 복구 기록.",
+      "blocks_destination_ids": []
+    },
+    {
+      "geom_ref": "CSV:FL-005",
+      "label": "서초구 진흥아파트 인근 도로 — 8일 밤 침수. 강남구 경계 밖 참고 지점이며 관측 분 시각·공개시각 모두 미확인",
+      "observed_at": null,
+      "available_time": null,
+      "source": "경향신문 현장사진 캡션.",
+      "blocks_destination_ids": []
+    }
+  ],
+
+  "_response_stages": [
+    { "stage": "1단계", "from": "2022-08-08T07:00:00+09:00", "to": "2022-08-08T12:50:00+09:00" },
+    { "stage": "2단계", "from": "2022-08-08T12:50:00+09:00", "to": "2022-08-08T22:00:00+09:00" },
+    { "stage": "3단계", "from": "2022-08-08T22:00:00+09:00", "to": "2022-08-10T06:00:00+09:00" },
+    { "stage": "2단계", "from": "2022-08-10T06:00:00+09:00", "to": "2022-08-10T19:40:00+09:00" },
+    { "stage": "1단계", "from": "2022-08-10T19:40:00+09:00", "to": null }
+  ],
+
+  "_observations": [
+    "강우 — 21:34 까지 1시간 116mm (강남구, 세부 관측지점·구간 시작시각 미기재). 서울시 공식 보고서 + 조선비즈 보도.",
+    "강우 — 23:45 현재 1일 333mm (강남구, 관측소명 미기재). TBS 보도.",
+    "수위 — 탄천 대곡교 21:00 기준 4.21m, 23:10 기준 6.28m. 연합뉴스(한강홍수통제소 인용) · TBS."
+  ],
+
+  "_subway": [
+    "2호선 삼성역·선릉역, 3호선 대치역 — 누수 및 무정차 통과, 8/9 첫차부터 정상 운행. 개별 역의 무정차 시작·종료 분 시각 미확인. 원출처가 역사 출입 전면폐쇄를 말하지 않으므로 그렇게 해석하지 않는다.",
+    "9호선 — 21:46 부터 개화~노량진 / 신논현~중앙보훈병원 분리운행, 노들~사평 운행 중단. 8/9 14:00 현재 전 구간 정상. 강남권 신논현~중앙보훈병원은 운행 구간이었으므로 강남권 지하철 폐쇄로 기록하지 않는다."
+  ],
+
+  "_riverside": [
+    "서울시 전체 27개 하천 통제 — 서울시 기준 문장이며 강남구의 특정 하천변 출입구나 보행 통제 시각을 정할 수 없다.",
+    "탄천 둔치주차장 2개소 차량 대피 — 주차장 명칭·강남구 소재 여부·시각 미기재. 차량 대피 사실만 기록하고 위치가 특정되기 전에는 경로 차단에 쓰지 않는다."
+  ],
+
+  "_evacuation": "구룡마을 주민 대피 및 구룡중학교 대피소 운영 — 8/9 11:00 기준 이재민 106명 중 89명 대피. 대피가 실제로 있었다는 사실은 확인되지만 공식 대피명령 원문·발령단계·발령시각은 두 원출처 어디에도 없다. 대피 발생과 공식 대피명령 발령은 서로 다른 항목이다."
 }

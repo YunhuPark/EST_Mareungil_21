@@ -25,7 +25,9 @@ class Action(StrEnum):
 class ServiceRiskLevel(StrEnum):
     """최종 서비스 위험 등급 (축 1).
 
-    `AiRiskLevel` 과 다른 축이다. SEVERE 는 공식 정보만 만들 수 있고 AI 는 만들 수 없다.
+    `AiRiskLevel` 과 다른 축이다. 판정은 `service_risk.classify()` 가 한다(C-23).
+    SEVERE 는 직접 안전신호 - 공식 대피 지시 / 고립 신고 / 지하 + 현장 위험 징후 -
+    가 있을 때만 나오며 **AI 는 만들 수 없다.**
     """
 
     SAFE = "SAFE"

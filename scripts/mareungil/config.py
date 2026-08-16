@@ -7,7 +7,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-ROOT = Path(r"C:\2026_Mareungil")
+#: 저장소 루트. **절대경로를 박지 않는다** — 이 파일은
+#: `<루트>/scripts/mareungil/config.py` 이므로 두 단계 위가 루트다.
+#: 예전에는 `Path(r"C:\2026_Mareungil")` 이었고, 그 기계 밖에서는 아무도
+#: 파이프라인을 돌릴 수 없었다(다른 팀원·macOS·CI 전부).
+#: 아래 파생 경로는 문자열 그대로 유지되므로 데이터 계약은 바뀌지 않는다.
+ROOT = Path(__file__).resolve().parents[2]
 
 RAW_RAINFALL_DIR = ROOT / "data_unified" / "raw" / "seoul" / "rainfall" / "2022" / "monthly"
 RAW_SEWER_DIR = ROOT / "data_unified" / "raw" / "seoul" / "sewer_level" / "2022" / "monthly"

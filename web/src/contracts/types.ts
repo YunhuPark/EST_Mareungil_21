@@ -2,7 +2,7 @@
  * `AssessResponse` 의 TypeScript 타입.
  *
  * 정본은 `contracts/schema/assess_response.schema.json` 이다. 스키마를 바꾸면
- * 이 파일도 같은 커밋에서 고친다(CLAUDE.md 7절).
+ * 이 파일도 같은 커밋에서 고친다(CLAUDE.md 8절).
  */
 
 import type {
@@ -30,12 +30,31 @@ export type {
   UserContext,
 };
 
-/** F-12. UI 는 Date.now() 를 쓰지 않고 label 을 그대로 표시한다. */
+/**
+ * F-12 / M-08. 시각은 전부 여기서 온다. 화면은 `Date.now()` 를 쓰지 않는다.
+ *
+ * 네 시각은 **항상 존재하지만 `null` 일 수 있다.** 확인되지 않은 시각을 지어내지
+ * 않으면서(M-36) "확인되지 않음"을 표시할 자리는 남겨두기 위해서다.
+ */
 export interface Clock {
   mode: 'REPLAY';
+  /** 재생 중인 과거 시각. 화면의 '지금'이다. */
   event_time: string;
+  /** 판단에 쓴 마지막 관측이 측정된 시각. */
+  observed_at: string | null;
+  /** 모델이 이 예측을 만든 시각. */
+  forecast_issued_at: string | null;
+  /** 예측이 겨냥한 미래 시각. M-03: 그 시각의 점 예측이다. */
+  forecast_target_at: string | null;
+  /** 시스템이 자료를 마지막으로 받은 시각. 관측시각과 다를 수 있다. */
+  last_update_at: string | null;
+  /** 데이터 경과시간(초). */
   data_age_sec: number;
+  /** 10분 초과. 지연 라벨만 띄우고 행동은 바꾸지 않는다. */
   stale: boolean;
+  /** 30분 초과. 판단 근거에서 제외한다. 그렇다고 무조건 WAIT 은 아니다(M-08). */
+  expired: boolean;
+  /** 화면에 그대로 찍는 문자열. 재조립하지 않는다. */
   label: string;
 }
 
@@ -114,7 +133,12 @@ export interface Decision {
   /** 화면에 표시하는 최종 행동. */
   action: Action;
   route_postprocess_applied?: boolean;
-  /** 축 1. ai_risk_level 과 다른 필드다. 레이아웃 분기에 쓰지 않는다. */
+  /**
+   * 축 1. ai_risk_level 과 다른 필드다. 레이아웃 분기에 쓰지 않는다 — 분기는 action.
+   *
+   * action 과 1:1 로 잇지 않는다 (C-23). 같은 DANGER 라도 실내면 WAIT,
+   * 실외면 EVACUATE 다. UI 는 두 값을 따로 받아 그대로 표시한다.
+   */
   service_risk_level: ServiceRiskLevel;
   needs_route: boolean;
   next_check_at?: string | null;
@@ -178,6 +202,47 @@ export interface SafeRoute {
   _stub?: string;
 }
 
+/**
+ * 공식정보 항목 (`official_info@v1`).
+ *
+ * **M-36. 여기 실려 오는 것은 재생 시각에 이미 공개돼 있던 항목뿐이다.** 필터는
+ * 서버(`services/decision/official.py`)가 걸며 UI 는 다시 거르지 않는다 —
+ * 두 곳에서 시각을 판정하면 화면과 판단이 어긋난다.
+ */
+export interface OfficialAlert {
+  type: string;
+  /** 실제 발령시각. 공개시각(available_time)과 다른 축이다. */
+  issued_at: string;
+  /** F-14. 해제됐다는 사실만으로 위험 표시를 낮추지 않는다. */
+  cleared_at?: string | null;
+  available_time?: string | null;
+  region?: string | null;
+  source?: string | null;
+}
+
+export interface OfficialClosure {
+  kind: 'ROAD' | 'UNDERPASS' | 'RIVERSIDE' | 'SUBWAY';
+  geom_ref: string;
+  label?: string | null;
+  /** RT-11. VEHICLE 을 보행 차단으로 승격하지 않는다. */
+  mode: 'VEHICLE' | 'PEDESTRIAN' | 'BOTH';
+  since?: string | null;
+  until?: string | null;
+  available_time?: string | null;
+  /** O-07. 목적지 차단의 유일한 근거다. 좌표 거리로 추정하지 않는다. */
+  blocks_destination_ids?: string[];
+}
+
+export interface ConfirmedFlooding {
+  geom_ref: string;
+  label?: string | null;
+  /** null 은 '관측 분 시각을 확인하지 못했다'는 뜻이다. 지어내지 않는다(M-36). */
+  observed_at: string | null;
+  available_time?: string | null;
+  source?: string | null;
+  blocks_destination_ids?: string[];
+}
+
 export interface AssessResponse {
   contract_version: string;
   /** FIXTURE 인 동안은 모델이 지금 계산한 결과가 아니다. */
@@ -187,10 +252,23 @@ export interface AssessResponse {
   risk: RiskAssessment;
   decision: Decision;
   route: SafeRoute;
+  /**
+   * C-21. `official_info@v1` 픽스처를 그대로 받는 블록이다. 필드를 골라 담지 않는다 —
+   * 골라 담으면 계약이 무엇을 거부하는지 화면 쪽에서 알 수 없게 된다.
+   */
   official?: {
     evacuation_order: boolean;
-    alerts: unknown[];
-    closures: unknown[];
+    alerts: OfficialAlert[];
+    closures: OfficialClosure[];
+    confirmed_flooding?: ConfirmedFlooding[];
+    /** 공식정보 스냅샷 시각. 화면 시각은 clock.label 이 담당하므로 직접 찍지 않는다. */
+    asof?: string;
+    /**
+     * DRAFT_UNVERIFIED 는 원출처 미확인 초안, DEMO_FIXTURE 는 시연용으로 만든
+     * 값이다(M-24·M-36). VERIFIED_SOURCE 가 아닌 것을 공식 확인 사실처럼 표시하지 않는다.
+     */
+    verification?: 'VERIFIED_SOURCE' | 'DRAFT_UNVERIFIED' | 'DEMO_FIXTURE';
+    source_url?: string | null;
     source: string;
   };
   // 데이터 품질은 risk.data_quality 하나가 정본이다. 최상위에 복사본을 두지 않는다.
@@ -202,6 +280,22 @@ export interface AssessResponse {
     emergency_note?: string | null;
   };
   versions?: Record<string, string | null>;
+}
+
+/**
+ * GET /api/scenarios — M-18. 수동 재판단이 고를 수 있는 재생 시각.
+ *
+ * `pending` 은 아직 만들지 않은 시나리오다. 목록에 없는 것을 있는 척하지 않는다.
+ */
+export interface ScenarioList {
+  scenarios: {
+    id: string;
+    label: string;
+    why?: string | null;
+    clock_label: string;
+    action: Action;
+  }[];
+  pending: string[];
 }
 
 /** GET /api/destinations */

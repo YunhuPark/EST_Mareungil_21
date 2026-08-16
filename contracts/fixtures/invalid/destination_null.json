@@ -4,8 +4,13 @@
   "clock": {
     "mode": "REPLAY",
     "event_time": "2022-08-08T11:00:00+09:00",
+    "observed_at": "2022-08-08T11:00:00+09:00",
+    "forecast_issued_at": "2022-08-08T11:00:00+09:00",
+    "forecast_target_at": "2022-08-08T11:30:00+09:00",
+    "last_update_at": "2022-08-08T11:00:00+09:00",
     "data_age_sec": 0,
     "stale": false,
+    "expired": false,
     "label": "2022-08-08 11:00 재생"
   },
   "location": {
@@ -17,21 +22,24 @@
   "risk": {
     "_scenario": "E1_no_data",
     "_why_this_moment": "예외 케이스 — 손으로 작성. 데이터에서 뽑은 값이 아니다",
-    "_note": "지원 범위 밖이거나 해당 시각 센서 자료가 없을 때. ②는 이 응답을 받으면 '정보 없음'으로 판정하고 추측 안내를 하지 않는다",
+    "_note": "area_risk.ai_risk_level 은 LOW/HIGH 두 값뿐이며 TH-04(O-01) 규칙으로 여기서 매긴다. ②(의사결정)는 이 값을 그대로 받아 쓰고 확률에 임계를 다시 적용하지 않는다. 최종 서비스 등급(SAFE/CAUTION/DANGER/SEVERE)은 별개 축이며 ②가 정한다.",
     "asof": "2022-08-08T12:10:00+09:00",
     "primary_horizon": 30,
     "sensors": [],
     "area_risk": {
-      "district": null,
+      "district": "강남역 반경 1000m",
       "score": null,
-      "basis": "산출 불가 — 활성 센서 없음"
+      "risk_probability": null,
+      "ai_risk_level": null,
+      "basis": "경로 범위(강남역 반경 1000m) 안에 확률을 가진 센서가 없어 지역 위험을 산출하지 않았다. 좌표 미상 센서 0개는 분모에서 제외한다."
     },
     "drivers": [],
     "model": {
       "name": "histgb",
       "version": "v2",
       "threshold": 0.33,
-      "threshold_basis": "val_events@fpr_0.05"
+      "threshold_basis": "val_events@fpr_0.05",
+      "threshold_version": "sensor-0.33+area-0.5"
     },
     "data_quality": {
       "sensors_active": 0,
@@ -59,9 +67,9 @@
     "reasons": [
       {
         "code": "AI_AREA_LOW",
-        "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (확률 0.1086).",
-        "value": 0.1086,
-        "threshold": 0.33,
+        "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 0.0).",
+        "value": 0.0,
+        "threshold": 0.5,
         "basis": "AI_PREDICTION"
       },
       {
@@ -126,16 +134,38 @@
     "source": "fixture:official_routes_30"
   },
   "official": {
+    "source": "서울특별시 물순환안전국 공식 보고서 · 연합뉴스 · TBS · 서울시 미디어재단 · 강남구청 (원문 대조표: sources/2022-08-08_gangnam_verified_events.csv)",
+    "source_url": "https://mas.smc.seoul.kr/record/appendixDownload.do?key=0e4ffd51e00b3613782e78b385145bd61bd7ce551fdcf6469d7aea8106e159a895151257e1ff0461",
+    "asof": "2022-08-08T11:00:00+09:00",
+    "verification": "VERIFIED_SOURCE",
     "evacuation_order": false,
-    "alerts": [],
+    "alerts": [
+      {
+        "type": "호우주의보",
+        "issued_at": "2022-08-08T08:00:00+09:00",
+        "cleared_at": "2022-08-08T12:50:00+09:00",
+        "available_time": "2022-08-08T08:00:00+09:00",
+        "region": "서울특별시 (강남구 포함)",
+        "source": "서울특별시 물순환안전국 호우피해 현황 및 복구관련 긴급 현황 보고 (CSV WX-001). 종료시각은 해제가 아니라 호우경보 격상 시각이다."
+      }
+    ],
     "closures": [],
-    "source": "fixture:official_0808"
-  },
-  "data_quality": {
-    "sensors_active": 32,
-    "observed_rate": 0.562,
-    "rain_available": true,
-    "reason": null
+    "confirmed_flooding": [],
+    "_source_file": "contracts/fixtures/official/official_0808.json",
+    "_visibility": {
+      "_note": "M-36. 재생 시각에 available_time 이 지나지 않은 항목과 공개시각을 확인하지 못한(null) 항목을 뺀 결과다. 아래 수는 '이 시각에는 아직 알 수 없었다'를 말하기 위한 것이며 계약 필드가 아니다.",
+      "replay_time": "2022-08-08T11:00:00+09:00",
+      "hidden": {
+        "alerts": 3,
+        "closures": 5,
+        "confirmed_flooding": 6
+      },
+      "undated": {
+        "alerts": 0,
+        "closures": 1,
+        "confirmed_flooding": 1
+      }
+    }
   },
   "notice": {
     "disclaimer": "교육·시연용입니다. 공식 재난안전 판단 도구가 아닙니다.",

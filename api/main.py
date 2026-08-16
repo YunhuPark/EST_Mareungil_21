@@ -26,11 +26,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.fixtures import (
     apply_destination,
+    apply_profiles,
     contract_errors,
     load_destinations,
     load_scenarios,
     load_validators,
 )
+from services.decision.enums import Profile
 
 CONTRACT_VERSION = os.environ.get("MAREUNGIL_CONTRACT_VERSION", "v1")
 DEFAULT_SCENARIO = os.environ.get("MAREUNGIL_DEFAULT_SCENARIO", "DS-S1")
@@ -70,9 +72,19 @@ def health() -> dict:
     }
 
 
+#: 계획된 DS 시나리오 전체. 여기서 실제 로드된 것을 빼면 `pending` 이다.
+#: 목록을 손으로 두 번 적으면 픽스처를 추가해도 "아직 없음"이 남는다.
+PLANNED_SCENARIOS = ["DS-S1", "DS-S2", "DS-S3", "DS-S4", "DS-S5", "DS-S6", "DS-S7", "DS-S8"]
+
+
 @app.get("/api/scenarios")
 def scenarios() -> dict:
-    """고를 수 있는 재생 시나리오. DS-S2~S6 는 아직 없다."""
+    """M-18. 수동 재판단이 고를 수 있는 재생 시각.
+
+    자동 감지·자동 재탐색은 MVP 범위 밖이므로 여기서 시각을 바꾸는 것이
+    재판단의 유일한 방법이다. 아직 만들지 않은 시나리오는 `pending` 으로
+    구분해 돌려준다 — 없는 것을 있는 척하지 않는다.
+    """
     return {
         "scenarios": [
             {
@@ -84,7 +96,7 @@ def scenarios() -> dict:
             }
             for sid, body in sorted(_scenarios.items())
         ],
-        "pending": ["DS-S2", "DS-S3", "DS-S4", "DS-S5", "DS-S6"],
+        "pending": [sid for sid in PLANNED_SCENARIOS if sid not in _scenarios],
     }
 
 
@@ -107,6 +119,13 @@ def destinations() -> dict:
 def assess(
     scenario: str = Query(default=DEFAULT_SCENARIO, description="재생 시나리오 id"),
     destination: str | None = Query(default=None, description="지정 지점 id (RT-14)"),
+    profile: list[str] = Query(
+        default=[],
+        description=(
+            "M-37. 고령자·아이동반 프로필. 순서 조정용이며 안전 기준을 완화하지 않는다. "
+            "경로 비교 엔진이 STUB 이라 아직 route.profile_applied 에 반영되지 않는다."
+        ),
+    ),
 ) -> dict:
     """UI 가 받는 단일 응답.
 
@@ -129,6 +148,18 @@ def assess(
                 f"지정 지점 목록에 없는 목적지 {destination}. 사용 가능: {sorted(_points)}",
             )
         body = apply_destination(body, point)
+
+    if profile:
+        # X1 / C-14. WHEELCHAIR·WITH_PET 은 계약 enum 밖이다. 여기서 막지 않으면
+        # 계약 검증에서 500 이 되는데, 그건 사용자 입력 오류를 서버 오류로 보고하는 것이다.
+        unknown = [p for p in profile if p not in {m.value for m in Profile}]
+        if unknown:
+            raise HTTPException(
+                400,
+                f"MVP 가 지원하지 않는 프로필 {unknown}. "
+                f"사용 가능: {sorted(m.value for m in Profile)}",
+            )
+        body = apply_profiles(body, profile)
 
     violations = contract_errors(_validators, body)
     if violations:

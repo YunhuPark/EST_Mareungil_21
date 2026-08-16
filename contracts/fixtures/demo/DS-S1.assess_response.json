@@ -8,8 +8,13 @@
   "clock": {
     "mode": "REPLAY",
     "event_time": "2022-08-08T11:00:00+09:00",
+    "observed_at": "2022-08-08T11:00:00+09:00",
+    "forecast_issued_at": "2022-08-08T11:00:00+09:00",
+    "forecast_target_at": "2022-08-08T11:30:00+09:00",
+    "last_update_at": "2022-08-08T11:00:00+09:00",
     "data_age_sec": 0,
     "stale": false,
+    "expired": false,
     "label": "2022-08-08 11:00 재생"
   },
   "location": {
@@ -878,6 +883,11 @@
         "contribution": null
       },
       {
+        "feature": "rain_past_10m_mm",
+        "value": 0.0,
+        "contribution": null
+      },
+      {
         "feature": "level_delta_30m",
         "value": 0.0,
         "contribution": null
@@ -925,9 +935,9 @@
     "reasons": [
       {
         "code": "AI_AREA_LOW",
-        "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (확률 0.1086).",
-        "value": 0.1086,
-        "threshold": 0.33,
+        "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 0.0).",
+        "value": 0.0,
+        "threshold": 0.5,
         "basis": "AI_PREDICTION"
       },
       {
@@ -992,10 +1002,38 @@
     "source": "fixture:official_routes_30"
   },
   "official": {
+    "source": "서울특별시 물순환안전국 공식 보고서 · 연합뉴스 · TBS · 서울시 미디어재단 · 강남구청 (원문 대조표: sources/2022-08-08_gangnam_verified_events.csv)",
+    "source_url": "https://mas.smc.seoul.kr/record/appendixDownload.do?key=0e4ffd51e00b3613782e78b385145bd61bd7ce551fdcf6469d7aea8106e159a895151257e1ff0461",
+    "asof": "2022-08-08T11:00:00+09:00",
+    "verification": "VERIFIED_SOURCE",
     "evacuation_order": false,
-    "alerts": [],
+    "alerts": [
+      {
+        "type": "호우주의보",
+        "issued_at": "2022-08-08T08:00:00+09:00",
+        "cleared_at": "2022-08-08T12:50:00+09:00",
+        "available_time": "2022-08-08T08:00:00+09:00",
+        "region": "서울특별시 (강남구 포함)",
+        "source": "서울특별시 물순환안전국 호우피해 현황 및 복구관련 긴급 현황 보고 (CSV WX-001). 종료시각은 해제가 아니라 호우경보 격상 시각이다."
+      }
+    ],
     "closures": [],
-    "source": "fixture:official_0808"
+    "confirmed_flooding": [],
+    "_source_file": "contracts/fixtures/official/official_0808.json",
+    "_visibility": {
+      "_note": "M-36. 재생 시각에 available_time 이 지나지 않은 항목과 공개시각을 확인하지 못한(null) 항목을 뺀 결과다. 아래 수는 '이 시각에는 아직 알 수 없었다'를 말하기 위한 것이며 계약 필드가 아니다.",
+      "replay_time": "2022-08-08T11:00:00+09:00",
+      "hidden": {
+        "alerts": 3,
+        "closures": 5,
+        "confirmed_flooding": 6
+      },
+      "undated": {
+        "alerts": 0,
+        "closures": 1,
+        "confirmed_flooding": 1
+      }
+    }
   },
   "notice": {
     "disclaimer": "교육·시연용입니다. 공식 재난안전 판단 도구가 아닙니다.",

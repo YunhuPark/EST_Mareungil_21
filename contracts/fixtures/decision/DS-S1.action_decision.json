@@ -2,7 +2,8 @@
   "_scenario": "DS-S1",
   "_what": "②판단 -> ③경로 로 넘어가는 ActionDecision 계약 픽스처. AssessResponse.decision 과 필드가 다르다 - 여기엔 asof·stage·official·route_prefs 가 있고 primary_action·route_postprocess_applied 가 없다. 후자는 경로 후처리 이후에 생기는 값이다.",
   "_stub": "decision 값 자체는 STUB 이다. 판단 엔진 미구현 구간을 손으로 채운 값이며 모델이나 정책 엔진이 만든 값이 아니다.",
-  "_official_note": "official 블록은 contracts/fixtures/official/official_0808.json 을 그대로 주입한 것이다. 그 파일이 아직 DRAFT_UNVERIFIED 이므로 여기 값도 비어 있다 - 지어내지 않았다.",
+  "_official_note": "official 블록은 contracts/fixtures/official/official_0808.json 을 이 파일의 asof(11:00)로 거른 결과다(M-36 available_time <= 재생시각, 작성 주석 _* 만 제외). O-11 로 원출처를 확인해 verification 이 VERIFIED_SOURCE 다. 11:00 에는 호우주의보(08:00 발효)만 공개돼 있었고 도로 통제 보도는 전부 22:01 이후 송고라 여기 없다 - 누락이 아니라 그 시각에 알 수 있던 것의 범위다. 이 파일은 생성기가 없어 손으로 관리하므로 official_0808.json 을 고치면 여기도 함께 고친다.",
+  "_th04_note": "AI_AREA_LOW 의 value/threshold 는 지역 축이다. 지역값은 area_risk.compute() 가 낸 비율(RF-S1 은 0/5 = 0.0)이고 임계는 AREA_THRESHOLD(0.5)다. 센서 임계 model.threshold(0.33)를 여기 쓰지 않는다 - 축이 어긋난다(C-17/C-20).",
   "asof": "2022-08-08T11:00:00+09:00",
   "action": "MOVE",
   "previous_action": null,
@@ -25,19 +26,31 @@
     }
   },
   "official": {
+    "source": "서울특별시 물순환안전국 공식 보고서 · 연합뉴스 · TBS · 서울시 미디어재단 · 강남구청 (원문 대조표: sources/2022-08-08_gangnam_verified_events.csv)",
+    "source_url": "https://mas.smc.seoul.kr/record/appendixDownload.do?key=0e4ffd51e00b3613782e78b385145bd61bd7ce551fdcf6469d7aea8106e159a895151257e1ff0461",
+    "asof": "2022-08-08T11:00:00+09:00",
+    "verification": "VERIFIED_SOURCE",
     "evacuation_order": false,
-    "alerts": [],
+    "alerts": [
+      {
+        "type": "호우주의보",
+        "issued_at": "2022-08-08T08:00:00+09:00",
+        "cleared_at": "2022-08-08T12:50:00+09:00",
+        "available_time": "2022-08-08T08:00:00+09:00",
+        "region": "서울특별시 (강남구 포함)",
+        "source": "서울특별시 물순환안전국 호우피해 현황 및 복구관련 긴급 현황 보고 (CSV WX-001). 종료시각은 해제가 아니라 호우경보 격상 시각이다."
+      }
+    ],
     "closures": [],
-    "confirmed_flooding": [],
-    "source": "fixture:official_0808"
+    "confirmed_flooding": []
   },
   "route_prefs": null,
   "reasons": [
     {
       "code": "AI_AREA_LOW",
-      "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (확률 0.1086).",
-      "value": 0.1086,
-      "threshold": 0.33,
+      "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 0.0).",
+      "value": 0.0,
+      "threshold": 0.5,
       "basis": "AI_PREDICTION"
     },
     {

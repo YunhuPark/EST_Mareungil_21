@@ -5,7 +5,7 @@
  * 유일한 외부 의존은 지도 타일이며, 그건 MapPanel 이 따로 다룬다.
  */
 
-import type { AssessResponse, DestinationList } from './contracts/types';
+import type { AssessResponse, DestinationList, ScenarioList } from './contracts/types';
 
 const BASE = import.meta.env.VITE_API_BASE ?? '';
 
@@ -18,12 +18,28 @@ async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function fetchAssess(scenario: string, destinationId?: string): Promise<AssessResponse> {
+export function fetchAssess(
+  scenario: string,
+  destinationId?: string,
+  /** M-37. 순서 조정용이며 안전 기준을 완화하지 않는다. */
+  profiles: string[] = [],
+): Promise<AssessResponse> {
   const params = new URLSearchParams({ scenario });
   if (destinationId) params.set('destination', destinationId);
+  for (const p of profiles) params.append('profile', p);
   return getJson<AssessResponse>(`/api/assess?${params.toString()}`);
 }
 
 export function fetchDestinations(): Promise<DestinationList> {
   return getJson<DestinationList>('/api/destinations');
+}
+
+/**
+ * M-18. 수동 재판단이 고를 수 있는 재생 시각 목록.
+ *
+ * 자동 감지·자동 재탐색은 MVP 범위 밖이다. 사용자가 버튼을 눌러 재생 시각을
+ * 바꿀 때만 다시 판단한다.
+ */
+export function fetchScenarios(): Promise<ScenarioList> {
+  return getJson<ScenarioList>('/api/scenarios');
 }
