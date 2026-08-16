@@ -23,7 +23,7 @@ cd EST_Mareungil_21
 | **PM** | **안려현** | 기획 · 안전정책 · 공식정보 | `contracts/fixtures/official/` | 안전정책 확정, 데모 시각 |
 | **A** | **안윤지** | 계약·정책 오너 (테크리드) | `contracts/`, `tests/` | 4대 스키마, enum 3종 사본 |
 | **B** | **유진희** | 백엔드 · 결정 엔진 | `services/decision/`, `api/` | `api/main.py` |
-| **C** | **김윤후** | 경로 엔진 · 공간 데이터 | `services/route/`, `contracts/destinations.json` | 지정 지점·시설·경로 후보 |
+| **C** | **박윤후** | 경로 엔진 · 공간 데이터 | `services/route/`, `contracts/destinations.json` | 지정 지점·시설·경로 후보 |
 | **D** | **정예지** | UI · UX | `web/src/components/`, `web/src/styles.css` | 화면 컴포넌트 |
 | **E** | **안윤지** (A 겸임) | AI · 예측 | `scripts/`, `contracts/fixtures/risk_*.json` | 모델 파이프라인 |
 
@@ -43,7 +43,7 @@ cd EST_Mareungil_21
 | `services/decision/enums.py` | **A · 안윤지** | 〃 |
 | `web/src/contracts/enums.ts`, `types.ts` | **A · 안윤지** | 〃 |
 | `contracts/fixtures/official/official_0808.json` | **PM · 안려현** | 공식정보·데모 시각의 단일 출처 |
-| `contracts/destinations.json` | **C · 김윤후** | 〃 |
+| `contracts/destinations.json` | **C · 박윤후** | 〃 |
 | `api/main.py` | **B · 유진희** | 통합 응답 조립 지점 |
 | `contracts/fixtures/risk_*.json` | **E · 안윤지** | 모델 픽스처 생성기 산출물 |
 

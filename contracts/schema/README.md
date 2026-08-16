@@ -8,7 +8,7 @@ JSON Schema **Draft 2020-12**. 이 디렉터리가 모든 enum·필드의 **정�
 |---|---|---|---|
 | `risk_assessment.schema.json` | ① 예측 AI → ② 판단 엔진 | E · 안윤지 | `risk_*.json` 5개 + `demo/` 합성 검증 |
 | `action_decision.schema.json` | ② 판단 엔진 → ③ 경로 엔진 | B · 유진희 | `decision/` 픽스처 |
-| `safe_route.schema.json` | ③ 경로 엔진 → ② 판단 엔진 | C · 김윤후 | `demo/` 합성 검증 + `invalid/` |
+| `safe_route.schema.json` | ③ 경로 엔진 → ② 판단 엔진 | C · 박윤후 | `demo/` 합성 검증 + `invalid/` |
 | `assess_response.schema.json` | 통합 API → ④ UI | B · 유진희 | `demo/` 픽스처 |
 | `official_info.schema.json` | 픽스처 → ② | PM · 안려현 | `official/` 픽스처 |
 

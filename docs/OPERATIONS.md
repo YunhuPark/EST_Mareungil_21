@@ -16,7 +16,7 @@
 | **계약·픽스처** `contracts/` | **A · 안윤지** | `.\make.ps1 contracts` 통과 | `logs\check.log` | ① 위반 경로 확인 → ② 스키마가 아니라 **픽스처를 고친다** → ③ `.\make.ps1 fixtures` 로 재생성 → ④ 안 되면 `git checkout -- contracts/fixtures/` |
 | **API 서버** `api/` | **B · 유진희** | `curl http://127.0.0.1:8000/api/health` → `{"status":"ok"}` · `/docs` 열림 | **`logs\api.log`** (창을 닫아도 남는다) | ① `logs\api.log` 끝을 본다 → ② 창 재실행 → ③ 그래도 안 뜨면 아래 2.2 |
 | **결정 엔진** `services/decision/` | **B · 유진희** | `.\make.ps1 test` — `tests/test_postprocess.py` 통과 | `logs\check.log` | ① 실패 테스트 이름 확인 → ② `git log --oneline -10` → ③ `git revert <해시>`. **`reset --hard` 를 쓰지 않는다** |
-| **경로 엔진** `services/route/` | **C · 김윤후** | `.\make.ps1 contracts` 에서 `route` 블록이 `safe_route` 스키마를 통과 | API 500 응답의 `contract_violations` · `logs\check.log` | ① `route_target`·`status` 조합이 C-02/C-03 을 어겼는지 본다 → ② 픽스처 되돌림 → ③ 후처리는 **재호출하지 않는다**(C-01) |
+| **경로 엔진** `services/route/` | **C · 박윤후** | `.\make.ps1 contracts` 에서 `route` 블록이 `safe_route` 스키마를 통과 | API 500 응답의 `contract_violations` · `logs\check.log` | ① `route_target`·`status` 조합이 C-02/C-03 을 어겼는지 본다 → ② 픽스처 되돌림 → ③ 후처리는 **재호출하지 않는다**(C-01) |
 | **AI · 예측** `scripts/` | **E · 안윤지** (A 겸임) | `.\make.ps1 fixtures` 후 `.\make.ps1 contracts` + `tests/test_area_risk.py` 통과 | 스크립트 stdout · `logs\check.log` | ① 재생성 결과와 커밋본을 `git diff` 로 대조 → ② 등급이 뒤집혔으면 `AREA_THRESHOLD`(0.5) 비교인지 확인(C-20) → ③ `git checkout -- contracts/fixtures/` |
 | **UI** `web/` | **D · 정예지** | 5173 화면에 **위험·위치·행동·재생시각·119** 다섯이 보인다 · `.\make.ps1 typecheck` `webtest` `build` | 브라우저 콘솔 + `.\make.ps1 web` 창(vite) · 빌드·테스트는 `logs\check.log` | ① 화면의 오류 문구를 읽는다([App.tsx:50-60](../web/src/App.tsx#L50-L60) 이 백엔드 주소까지 알려준다) → ② vite 창 재시작 → ③ `Remove-Item -Recurse -Force web\node_modules; .\make.ps1 setup` |
 | **지도 타일** (외부) | **D · 정예지** | 타일이 안 떠도 위 다섯이 남는지 | 브라우저 Network 탭 | **대응 불필요.** [MapPanel.tsx:84-88](../web/src/components/MapPanel.tsx#L84-L88) 이 이미 안내 문구로 대체한다. 발표에서 "지도는 외부 타일이라 없어도 판단은 보입니다"라고 말한다 |
@@ -84,7 +84,7 @@ json.decoder.JSONDecodeError: Unexpected UTF-8 BOM (decode using utf-8-sig)
 |---|---|---|---|---|
 | 1 | **네트워크 OFF → 백업화면 → 복구** | `api` 창을 닫는다 (또는 Wi-Fi 끔) | 화면이 "응답을 불러오지 못했습니다"를 보이고, 이미 받은 응답이 있으면 그것을 유지하며 "갱신에 실패해 이전 응답을 표시하고 있습니다"를 띄운다. 119 와 면책 문구가 남는다. 서버를 다시 띄우면 복구된다 | **D · 정예지** |
 | 2 | **AI timeout** → 공식정보·사용자 상태 기반 판단 또는 `DATA_UNAVAILABLE` | `risk` 블록이 없거나 `ai_risk_level: null` 인 픽스처(`RF-E1` 계열)로 요청 | 등급이 `SAFE` 로 떨어지지 않고 `CAUTION` 이상이며 사유에 "지역 위험을 산출할 센서 자료가 없습니다"가 실린다. 고립 신고·공식 대피 지시는 그대로 작동한다 | **E · 안윤지** + **B · 유진희** |
-| 3 | **경로 API 실패** → 경로 중단·대체안내 | `route.status` 를 `DATA_UNAVAILABLE` 로 둔 픽스처로 요청 | 임의 경로나 가상 선을 그리지 않는다. 경로 카드가 사유를 표시하고 행동은 1차 행동을 유지한다. `EVACUATE` 였다면 119 강조가 켜진다 | **C · 김윤후** |
+| 3 | **경로 API 실패** → 경로 중단·대체안내 | `route.status` 를 `DATA_UNAVAILABLE` 로 둔 픽스처로 요청 | 임의 경로나 가상 선을 그리지 않는다. 경로 카드가 사유를 표시하고 행동은 1차 행동을 유지한다. `EVACUATE` 였다면 119 강조가 켜진다 | **C · 박윤후** |
 
 **기록할 것.** 장애 발생시각부터 감지 → 백업 전환 → 사용자 안내 → 정상 복구까지를 로그로
 남긴다. 장애 시에는 `status`, `scenario_id`, 데이터·정책 버전을 함께 적는다(M-33).
@@ -97,7 +97,7 @@ json.decoder.JSONDecodeError: Unexpected UTF-8 BOM (decode using utf-8-sig)
 ### 담당 (M-33)
 
 **전체 앱의 통합·실행과 개발 세션 종료 후 정상 작동 확인은 안윤지**가 맡는다.
-모듈별 오류 확인은 1절 표와 같다: 안윤지=AI, 유진희=결정엔진, 김윤후=경로, 정예지=UI.
+모듈별 오류 확인은 1절 표와 같다: 안윤지=AI, 유진희=결정엔진, 박윤후=경로, 정예지=UI.
 
 ## 3. 결정 기록
 
