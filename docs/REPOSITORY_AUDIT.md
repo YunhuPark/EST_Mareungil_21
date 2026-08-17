@@ -91,11 +91,11 @@
 | 계약 | `contracts/schema/safe_route.schema.json`, `assess_response.schema.json`, `official_info.schema.json` |
 | 계약 | `contracts/schema/risk_assessment.schema.json` **최소 변경** — `risk_probability`·`ai_risk_level`·`threshold_version` 추가 |
 | 검증 | `contracts/validate.py` |
-| 픽스처 | `contracts/fixtures/demo/DS-S1`, `official/official_0808.json`(초안), `invalid/` 6종, `contracts/destinations.json`(초안) |
+| 픽스처 | `contracts/fixtures/demo/DS-S1`, `official/official_0808.json`(초안), `invalid/` 6종, `contracts/destinations.json`(초안), `contracts/safe_points.json`(확정 · C-32) |
 | 서비스 | `services/decision/`(enums·postprocess), `services/route/`(interface·fixture_provider) |
 | API | `api/main.py`, `api/fixtures.py` |
 | UI | `web/` 전체 (Vite + React + TS + Leaflet 모바일 단일 화면) |
-| 테스트 | `tests/` 5개 파일 · 75건 (부트스트랩 시점. **현재는 10개 모듈 · 220건** — 6절 참조) |
+| 테스트 | `tests/` 5개 파일 · 75건 (부트스트랩 시점. **현재는 11개 모듈 · 236건** — 6절 참조) |
 | 문서 | `docs/` 5개 (RUNBOOK · DECISIONS · CHECKLIST · AUDIT · GITHUB_SETUP) |
 
 ### 기존 스키마를 교체하지 않고 최소 변경한 이유
@@ -121,7 +121,7 @@ G0 에서 픽스처 생성기를 갱신할 때 하도록 [DECISIONS.md](./DECISI
 >
 > **갱신 2026-08-17 O-16(C-28) 반영.** `observed_rate` 계산식을 연속 지표로 바꾸고
 > 픽스처 STUB 과 `classify()` 를 대조하는 검사를 더했다. 현재 검증 규모는
-> **스키마 5개 · 픽스처 23건(유효 12 + 거부 11) · Python 220건(10개 모듈) · 프론트 25건**이다.
+> **스키마 5개 · 픽스처 23건(유효 12 + 거부 11) · Python 236건(11개 모듈) · 프론트 25건**이다.
 >
 > **갱신 2026-08-16 검사 보강.** 반영 결과를 감사하다 사각지대 둘을 찾아 메웠다.
 > 둘 다 **일부러 깨뜨려 실패를 확인한 뒤** 되돌렸다 — 8절의 교훈을 이번에도 먼저 적용했다.
@@ -162,7 +162,8 @@ G0 에서 픽스처 생성기를 갱신할 때 하도록 [DECISIONS.md](./DECISI
 | **공식정보 화면 표시** | **구현됨** | `OfficialPanel`. 경보·통제·확인 침수와 `verification` 배지 |
 | **지정 지점 목록 확정** | **초안** | 5개, 좌표 `APPROX_UNVERIFIED` |
 | **데이터 품질 규칙 DQ-01~05** | **없음** | T+3:00~6:00. **행동 축 이야기다** — DQ-03 의 `observed_rate` 계산식은 C-28 로 확정됐고 등급 축(`quality_low` → `CAUTION` 하한)은 이미 있다. 없는 것은 "최소 `WAIT`" 을 만드는 행동 판정 본체다 |
-| **대피시설 안전거점 선택** | **없음** | T+6:00~8:00 |
+| **안전거점 후보 집합 (C-32)** | **확정됨** | 107곳 → **7곳**. `contracts/safe_points.json` · 생성기 `scripts/build_safe_points.py` · `tests/test_safe_points.py` 16건. 범위(강남역 1km)를 새로 정하지 않고 RT-15·O-09 를 적용한 결과다 |
+| **대피시설 안전거점 선택 로직** | **없음** | T+6:00~8:00. **집합만 닫혔고 순위·`relative_risk`·수용인원 반영·시설 상태 연동은 없다.** `test_후보에_순위나_위험값이_없다` 가 이 경계를 고정한다 |
 | **프로필 P1/P2 선택** | **구현됨** | M-37. `ProfilePicker` → `/api/assess?profile=` → `user_state.profiles`. 화면이 "팀 합의값이며 검증값이 아님"과 "아직 순서에 반영되지 않음"을 함께 표시한다 |
 | **프로필 P1/P2 적용** | **없음** | **값은 확정됐다**(M-37: 1.15 · 1.5 · 60분/30분). 적용할 경로 비교 엔진이 아직 STUB 이라 `route.profile_applied` 는 `[]` 다. `test_프로필은_아직_경로에_적용되지_않는다` 가 이 상태를 고정한다 |
 | **분 단위 급등 감시** | **범위 밖** | G2 이후 별도 브랜치 |

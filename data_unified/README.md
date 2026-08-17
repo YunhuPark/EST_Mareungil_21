@@ -25,6 +25,9 @@ data_unified/
 │  ├─ needs_validation/rainfall_2023_2025
 │  ├─ needs_mapping/sewer_level_hourly_gangnam_2023_2025
 │  └─ spatial/flood_footprints
+├─ processed/
+│  ├─ v2/                    # 센서 x 10분 모델링 데이터셋 (scripts/build_dataset.py)
+│  └─ safe_route_v1/         # 경로·대피시설 전달 자료 (외부 제공, 파생 테이블)
 ├─ pending/
 │  └─ kma_ultra_short_forecast/2022
 └─ metadata/
@@ -42,6 +45,7 @@ data_unified/
 | `reference/needs_validation/rainfall_2023_2025` | 검증 후 사용 | 다년 확장 후보 |
 | `reference/needs_mapping/sewer_level_hourly_gangnam_2023_2025` | 매핑 후 사용 | 다년 수위 확장 후보 |
 | `reference/spatial/flood_footprints` | 참고·경로엔진 | 지역위험 검증과 정적 침수정보 |
+| `processed/safe_route_v1` | 핵심·경로엔진 | 공식 대피경로 후보 30개와 대피시설 107곳. 안전거점 후보 7곳(C-32)의 원본 |
 | `pending/kma_ultra_short_forecast/2022` | 미수집 | 과거 예보 기반 백테스트 |
 
 파일별 원래 위치와 판정은 `metadata/source_manifest.csv`에서 확인한다.
