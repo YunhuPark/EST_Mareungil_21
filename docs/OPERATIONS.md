@@ -92,8 +92,9 @@ json.decoder.JSONDecodeError: Unexpected UTF-8 BOM (decode using utf-8-sig)
 
 **준비된 고정 픽스처.** 정상 후보(`DS-S1`·`DS-S7`) · `NO_SAFE_POINT`(`DS-S8`) ·
 `DESTINATION_BLOCKED`(`DS-S6`).
+**리허설 3(경로 실패)은 `DS-S8` 로 지금 그대로 수행할 수 있다.**
 `NO_SAFE_ROUTE`(`DS-S5`)와 `DATA_UNAVAILABLE` 은 아직 미작성이며 거부 예제만 있다 —
-[fixtures/README](../contracts/fixtures/README.md) 의 미작성 표를 본다.
+[fixtures/README](../contracts/fixtures/README.md) 의 상태 표를 본다.
 
 ### 담당 (M-33)
 

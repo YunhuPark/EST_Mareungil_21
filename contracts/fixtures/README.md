@@ -17,9 +17,9 @@
 | 구분 | ID | 위치 | 계약 | 값의 출처 |
 |---|---|---|---|---|
 | 모델 위험 스냅샷 | `RF-S1`~`RF-S4`, `RF-E1` | `risk_*.json` (이 폴더 바로 아래) | `RiskAssessment` | **실제 모델 출력** |
-| 통합 데모 | `DS-S1`·`DS-S6`~`DS-S8` (`DS-S2`~`DS-S5` 미작성) | `demo/` | `AssessResponse` | risk 블록은 실제 모델 출력, decision·route 는 **STUB** |
+| 통합 데모 | `DS-S1`·`DS-S6`·`DS-S7`·`DS-S8` (`DS-S2`~`DS-S5` 미작성) | `demo/` | `AssessResponse` | risk 블록은 실제 모델 출력, decision·route 는 **STUB** |
 | ②→③ 판단 산출 | `DS-S1` | `decision/` | `ActionDecision` | **STUB** — 판단 엔진 미구현 |
-| 공식정보 | — | `official/` | `OfficialInfo` | `official_0808.json` 은 **`VERIFIED_SOURCE`** (원문 대조표 30건 · C-25). 목적지 차단 시연용 `official_demo_destination_blocked.json` 만 `DEMO_FIXTURE` |
+| 공식정보 | — | `official/` | `OfficialInfo` | **채움 완료 · `VERIFIED_SOURCE`** (O-11 → C-25. 원출처 대조표 30건). 목적지 차단 시연용 `official_demo_destination_blocked.json` 만 `DEMO_FIXTURE` |
 | 거부 예제 | — | `invalid/` | 각 파일이 선언 | 통과하면 검증 실패 |
 
 파일명은 호환을 위해 `risk_S1_calm.json` 그대로 두고, 문서·테스트에서만 `RF-` 접두사를 붙인다.
@@ -84,7 +84,7 @@ UI 가 실제로 받는 `AssessResponse` 다.
 | `DS-S3` | 공식 대피 지시 또는 AI `HIGH`+실외 | `EVACUATE` + `SAFE_POINT` | 미작성 |
 | `DS-S4` | `trapped=true` | `EMERGENCY` | 미작성 |
 | `DS-S5` | `MOVE` + 후보 전부 제외 | `NO_SAFE_ROUTE` → 최종 `WAIT` | 미작성 |
-| `DS-S6` | `MOVE` + 목적지가 통제 구간 | `DESTINATION_BLOCKED` | **있음** (M-16) |
+| `DS-S6` | `MOVE` + 목적지가 통제 구간 | `DESTINATION_BLOCKED` | **있음** (M-16. 통제는 `DEMO_FIXTURE` 합성값) |
 | `DS-S7` | `EVACUATE` + 1순위 시설 만석 | 2순위로 전환, `EVACUATE` 유지 | **있음** (M-32) |
 | `DS-S8` | `EVACUATE` + 후보 0개 | `NO_SAFE_POINT`, `EVACUATE` 유지 + 119 강조 | **있음** (M-32) |
 
