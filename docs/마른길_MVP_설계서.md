@@ -293,6 +293,8 @@ Decision Engine은 30분 지역 `ai_risk_level`을 행동 분기에 사용한다
 
 여기서 “응답 포함 센서”는 실시간으로 작동 중이라는 뜻이 아니다. 35개 센서 레지스트리 중 해당 과거 재생 시점(`asof`)에 데이터가 있고 품질 조건을 통과해 `RiskAssessment.sensors[]`에 포함된 센서를 뜻한다. 현재 정상 데모 픽스처는 31~32개이며, 무데이터 예외 픽스처 `RF-E1`은 별도로 0개를 허용한다. 응답은 35개를 억지로 채우지 않고 실제 포함 수와 관측률을 `data_quality`에 기록한다.
 
+`data_quality.observed_rate`는 **센서별 샘플링 충족도 `min(sample_count/10, 1)`의 평균**이며 이진 판정이 아니다(C-28). 예전 식은 `sample_count >= 10`인 센서의 비율이었는데 `sample_count`의 중앙값이 정확히 10이라, 판독 하나가 빠진 센서(9개)가 통째로 미관측으로 계산됐다. 그 결과 데모 사건에서 DQ-03이 시점의 88.1%에서 발화해 `DS-S1`·`DS-S6`의 `SAFE`와 어긋났다. **임계 0.70은 바꾸지 않았고 계산식만 바꿨다.** 근거와 수치는 [DECISIONS 2.5](DECISIONS.md)에 있다.
+
 ### 8.3 모델 선택과 평가
 
 - 선택 모델: HistGradientBoosting
@@ -451,7 +453,7 @@ TH-04 지역 집계 규칙과 지역 단위 임계, 경계 진동 억제는 **G0
 |---|---|
 | 데이터 지연 10분 초과 | 행동 유지 + 지연 표시 |
 | 데이터 지연 30분 초과 | 해당 자료를 판단 근거에서 제외. **현재 행동이 `MOVE`이고 다른 직접 안전신호가 없을 때만** `MOVE→WAIT` |
-| 센서 관측률 70% 미만 | `WAIT` 하한 |
+| 센서 관측률 70% 미만 (`observed_rate` — 8.2절 정의, C-28) | `WAIT` 하한 |
 | 강우 데이터 결측 | `UNAVAILABLE`. 단 우선순위 1·2·4로 확정된 행동은 유지 |
 | 현재 행동이 `EMERGENCY`이거나 우선순위 2·4로 확정된 `EVACUATE` | 품질 문제로 하향하지 않음 |
 
@@ -600,7 +602,7 @@ MVP는 이 흐름을 시설 상태 연동이 아니라 **고정 픽스처 `DS-S7
 | `RiskAssessment` | ①→② | `asof`, 센서별 확률, 30분 지역 `risk_probability`, `ai_risk_level=LOW/HIGH`, 임계값·버전, 변화, 품질 | **있음 · 검증됨** (RF 픽스처 5건) |
 | `ActionDecision` | ②→③ | `action`, `service_risk_level`, `needs_route`, 이유, `trapped`, `hazard_signs`, `destination` | **있음 · 검증됨** (`decision/DS-S1`) |
 | `SafeRoute` | ③→② | `status`, `route_target`, `target`, `route_attempted`, `route_verified`, 후보·제한, `no_safe_route`; 실패 상태 `NO_SAFE_POINT\|NO_SAFE_ROUTE\|DESTINATION_BLOCKED\|DATA_UNAVAILABLE` | **있음 · 합성 검증됨** (`AssessResponse.route`) |
-| `AssessResponse` | API→④ | `clock`, 위험, 행동, 경로, 공식·품질·제한 | **있음 · 검증됨** (`DS-S1`·`DS-S7`·`DS-S8`) |
+| `AssessResponse` | API→④ | `clock`, 위험, 행동, 경로, 공식·품질·제한 | **있음 · 검증됨** (`DS-S1`·`DS-S6`·`DS-S7`·`DS-S8`) |
 | `OfficialInfo` | 픽스처→②③④ | `asof`, `verification`, `evacuation_order`, `alerts`·`closures`·`confirmed_flooding` + 각 항목의 `available_time` | **있음 · 값은 미채움**(O-11) |
 
 계약 규칙:

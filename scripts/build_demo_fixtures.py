@@ -25,6 +25,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 from mareungil import area_risk
 from mareungil import config as C
 from mareungil import evaluate as E
+from mareungil import sewer
 from run_models import FEATURES, RANDOM_STATE, TAG, build_xy, make_models
 
 HORIZON = 30
@@ -172,7 +173,9 @@ def main() -> None:
             },
             "data_quality": {
                 "sensors_active": len(sensors),
-                "observed_rate": round(float(snap["sample_count"].ge(10).mean()), 3),
+                # C-28 (O-16). 계산식은 `mareungil/sewer.py` 한 곳에만 있다.
+                # `snap` 은 이미 `E.prepare()` 를 거쳤으므로 `sensors_active` 와 분모가 같다.
+                "observed_rate": sewer.observed_rate(snap),
                 "rain_available": bool(pd.notna(first["rain_local_mean_mm"])),
             },
         }
