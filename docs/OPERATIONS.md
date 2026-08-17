@@ -21,6 +21,7 @@
 | **UI** `web/` | **D · 정예지** | 5173 화면에 **위험·위치·행동·재생시각·119** 다섯이 보인다 · `.\make.ps1 typecheck` `webtest` `build` | 브라우저 콘솔 + `.\make.ps1 web` 창(vite) · 빌드·테스트는 `logs\check.log` | ① 화면의 오류 문구를 읽는다([App.tsx:50-60](../web/src/App.tsx#L50-L60) 이 백엔드 주소까지 알려준다) → ② vite 창 재시작 → ③ `Remove-Item -Recurse -Force web\node_modules; .\make.ps1 setup` |
 | **지도 타일** (외부) | **D · 정예지** | 타일이 안 떠도 위 다섯이 남는지 | 브라우저 Network 탭 | **대응 불필요.** [MapPanel.tsx:84-88](../web/src/components/MapPanel.tsx#L84-L88) 이 이미 안내 문구로 대체한다. 발표에서 "지도는 외부 타일이라 없어도 판단은 보입니다"라고 말한다 |
 | **공식정보 픽스처** | **PM · 안려현** | `official_0808.json` 의 `verification` 값 | — | 값이 없으면 비운 채로 간다(런북 G0 실패 시 절차) |
+| **안전거점 후보 목록** | **C · 박윤후** | `.\make.ps1 test` — `tests/test_safe_points.py` 16건 통과 | 스크립트 stdout · `logs\check.log` | ① 원본 CSV(`data_unified/processed/safe_route_v1/`)가 있는지 본다 — 없으면 테스트가 skip 된다 → ② `python scripts/build_safe_points.py --check` 로 커밋본과 대조 → ③ 어긋나면 `--write` 로 재생성하고 `git diff` 를 읽는다. **손으로 고치지 않는다** → ④ `git checkout -- contracts/safe_points.json` |
 
 ## 2. 알아차리는 순서 — 지금은 자동이 아무것도 없다
 

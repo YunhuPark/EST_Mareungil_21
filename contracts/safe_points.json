@@ -1,0 +1,157 @@
+{
+  "_status": "CLOSED",
+  "_owner": "C · 박윤후",
+  "_closed_on": "2026-08-17",
+  "_closed_by": "C · 박윤후",
+  "_owner_ack": "CONFIRMED",
+  "_closed_what": "어떤 시설이 SAFE_POINT 후보 목록에 오르는가. 이것만 닫았다. 순위·relative_risk·수용인원 반영·시설 운영상태 연동은 열려 있다.",
+  "_warning": "등재는 안전 보장이 아니다. 원천기관·배포페이지·기준연도를 재확인하기 전에는 발표나 화면에서 검증된 시설로 표현하지 않는다.",
+  "_generator": "scripts/build_safe_points.py",
+  "_source": {
+    "file": "data_unified/processed/safe_route_v1/flood_shelters_107.csv",
+    "rows": 107,
+    "source_status": "원천기관 재확인 전. 전달 자료의 열 이름을 그대로 옮겼다."
+  },
+  "_rules": [
+    "이 목록은 EVACUATE 의 도달 대상(SAFE_POINT) 후보다. MOVE 의 목적지는 destinations.json 이며 두 목록은 섞지 않는다.",
+    "범위의 정본은 contracts/destinations.json 의 scope 다. 여기 실린 scope 는 사본이며 tests/test_safe_points.py 가 두 값이 같은지 확인한다.",
+    "목록 등재는 안전 보장이 아니다. 이 시설로 가는 경로가 존재한다는 뜻도 아니다.",
+    "후보 순위·relative_risk·수용인원 반영·시설 운영상태는 여기서 정하지 않는다. 경로 엔진이 정한다.",
+    "M-32. 시설 상태로 후보를 빼는 것은 만석·폐쇄·접근 불가가 확인된 경우뿐이다. 확인되지 않은 상태는 제외 사유가 아니다.",
+    "M-25. 민간건물 임시 안전거점은 MVP 제외다. 범위 안 시설은 전부 학교·관공서라 별도 제외 규칙이 필요 없다."
+  ],
+  "_selection": {
+    "criterion": "scope 중심에서 haversine 거리 <= scope.radius_m",
+    "criterion_note": "RT-15 · O-09 에서 이미 닫힌 경로 범위를 그대로 적용한 것이다. 이 스크립트가 새로 정한 기준이 아니다.",
+    "kept": 7,
+    "dropped": 100
+  },
+  "_boundary": {
+    "last_included_m": 713.7,
+    "first_excluded_m": 1103.5,
+    "first_excluded_label": "반포고등학교",
+    "gap_m": 389.8,
+    "_note": "이 간격 안에서는 반경을 어떻게 잡아도 후보 집합이 같다. 컷이 임계 민감하지 않다는 근거다."
+  },
+  "scope": {
+    "center_label": "강남역",
+    "center_lat": 37.4979,
+    "center_lon": 127.0276,
+    "radius_m": 1000.0,
+    "_scope_note": "contracts/destinations.json 의 사본이다. 여기서 고치지 않는다."
+  },
+  "points": [
+    {
+      "id": "SP-001",
+      "label": "서초초등학교",
+      "lat": 37.49952,
+      "lon": 127.02393,
+      "coordinate_quality": "SOURCE_PROVIDED_UNVERIFIED",
+      "distance_from_center_m": 370.5,
+      "facility": {
+        "sigungu": "서초구",
+        "category": "학교",
+        "source_class": "긴급",
+        "capacity": 203,
+        "address": "서울특별시 서초구 서운로 178(서초동)",
+        "source_seq": 3962
+      }
+    },
+    {
+      "id": "SP-002",
+      "label": "서일중학교",
+      "lat": 37.49929,
+      "lon": 127.02218,
+      "coordinate_quality": "SOURCE_PROVIDED_UNVERIFIED",
+      "distance_from_center_m": 502.5,
+      "facility": {
+        "sigungu": "서초구",
+        "category": "학교",
+        "source_class": "긴급",
+        "capacity": 1654,
+        "address": "서울특별시 서초구 서운로21길 2(서초동)",
+        "source_seq": 3940
+      }
+    },
+    {
+      "id": "SP-003",
+      "label": "서운중학교",
+      "lat": 37.49398,
+      "lon": 127.02452,
+      "coordinate_quality": "SOURCE_PROVIDED_UNVERIFIED",
+      "distance_from_center_m": 513.6,
+      "facility": {
+        "sigungu": "서초구",
+        "category": "학교",
+        "source_class": "안전",
+        "capacity": 437,
+        "address": "서울특별시 서초구 서운로 115(서초동)",
+        "source_seq": 3939
+      }
+    },
+    {
+      "id": "SP-004",
+      "label": "역삼1문화센터",
+      "lat": 37.4954,
+      "lon": 127.03327,
+      "coordinate_quality": "SOURCE_PROVIDED_UNVERIFIED",
+      "distance_from_center_m": 572.3,
+      "facility": {
+        "sigungu": "강남구",
+        "category": "관공서",
+        "source_class": "긴급",
+        "capacity": 566,
+        "address": "서울특별시 강남구 역삼로7길 16(역삼동)",
+        "source_seq": 3970
+      }
+    },
+    {
+      "id": "SP-005",
+      "label": "서초2동주민센터",
+      "lat": 37.49207,
+      "lon": 127.02493,
+      "coordinate_quality": "SOURCE_PROVIDED_UNVERIFIED",
+      "distance_from_center_m": 689.7,
+      "facility": {
+        "sigungu": "서초구",
+        "category": "관공서",
+        "source_class": "안전",
+        "capacity": 296,
+        "address": "서울특별시 서초구 서초대로70길 51(서초동)",
+        "source_seq": 3942
+      }
+    },
+    {
+      "id": "SP-006",
+      "label": "서초4동주민센터",
+      "lat": 37.5,
+      "lon": 127.02,
+      "coordinate_quality": "SOURCE_PROVIDED_UNVERIFIED",
+      "distance_from_center_m": 710.0,
+      "facility": {
+        "sigungu": "서초구",
+        "category": "관공서",
+        "source_class": "긴급",
+        "capacity": 335,
+        "address": "서울특별시 서초구 서운로26길 3(서초동)",
+        "source_seq": 3943
+      }
+    },
+    {
+      "id": "SP-007",
+      "label": "서이초등학교",
+      "lat": 37.49161,
+      "lon": 127.02599,
+      "coordinate_quality": "SOURCE_PROVIDED_UNVERIFIED",
+      "distance_from_center_m": 713.7,
+      "facility": {
+        "sigungu": "서초구",
+        "category": "학교",
+        "source_class": "안전",
+        "capacity": 223,
+        "address": "서울특별시 서초구 서운로 35(서초동)",
+        "source_seq": 3961
+      }
+    }
+  ]
+}

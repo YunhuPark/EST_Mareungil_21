@@ -146,6 +146,7 @@ git revert <커밋해시>       # reset --hard 로 지우지 않는다. 남의 �
 | `web/src/contracts/enums.ts` · `types.ts` | 계약 오너 | enum·타입 TS 사본 |
 | `contracts/fixtures/official/official_0808.json` | 기획 PM | 공식정보·데모 시각 |
 | `contracts/destinations.json` | 경로·데이터 담당 | 지정 지점 목록 |
+| `contracts/safe_points.json` | 경로·데이터 담당 | 안전거점 후보 목록. 생성기 산출물이라 손으로 고치지 않는다 |
 | `api/main.py` | 백엔드 담당 | 통합 응답 조립 |
 
 세 곳의 enum 이 어긋나면 `tests/test_enum_sync.py` 가 실패하므로 조용히 넘어가지는 않는다.

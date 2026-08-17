@@ -3,9 +3,10 @@
 이 파일은 사람과 Claude Code가 **같은 규칙으로** 이 저장소를 고치기 위한 기준이다.
 코드를 고치기 전에 이 문서를 먼저 읽는다.
 
-> 최종 갱신: 2026-08-16 · 최종 회의 확정사항(M-01~M-39)을 반영한 뒤, 같은 날 O-11(공식정보
-> 실제 값)·O-12(데모 시각 21:40)·O-15(`DANGER` 추가 위험신호)를 닫으면서 다시 썼다.
-> 검증 규모는 **계약 픽스처 23건 · Python 208건 · 프론트 25건**이다.
+> 최종 갱신: 2026-08-17 · O-16(DQ-03 관측률 지표)과 C-32(안전거점 후보 집합 7곳)를
+> 닫으면서 다시 썼다. 그 전날에는 최종 회의 확정사항(M-01~M-39)과 O-11(공식정보 실제 값)·
+> O-12(데모 시각 21:40)·O-15(`DANGER` 추가 위험신호)를 반영했다.
+> 검증 규모는 **계약 픽스처 23건 · Python 236건 · 프론트 25건**이다.
 
 ## 1. 프로젝트 한 문장
 
@@ -120,7 +121,8 @@ Python이 소비하지 않아 `enums.py` 사본이 없는 값들이다. **사본
 | m / cm / 충만율 | 단위 미확인(`UNCONFIRMED`) |
 
 띄어쓰기를 뺀 형태(`안전경로`·`최적경로`·`자동신고`)도 같이 막는다.
-`112`는 한글이 든 문장에서만 본다 — 숫자 문자열에서 부분 일치가 나기 때문이다.
+**픽스처 검사에서** `112`는 한글이 든 문장에서만 본다 — 숫자 문자열에서 부분 일치가
+나기 때문이다(`distance_m`이 문자열이었다면 `1120`이 걸린다). `web/src` 쪽은 그대로 본다.
 **이 표와 `BANNED` 목록이 어긋나면 표를 고친다** — 검사하는 쪽이 테스트다.
 
 ## 6. 로컬 실행·검증 명령
@@ -131,9 +133,11 @@ Python이 소비하지 않아 `enums.py` 사본이 없는 값들이다. **사본
 ```powershell
 .\make.ps1 setup       # clone 직후 이것 하나 — 사전 확인 + 설치 + 검증
 .\make.ps1 install     # 설치만 (검증은 따로 check)
+.\make.ps1 install-model  # 모델·데이터 파이프라인 의존성 (pandas·scikit-learn·pyarrow)
+                          # 앱 실행에는 필요 없다. 픽스처를 다시 만들 때만 쓴다
 .\make.ps1 api         # 백엔드 개발 서버  http://127.0.0.1:8000
 .\make.ps1 web         # 프론트 개발 서버  http://127.0.0.1:5173
-.\make.ps1 fixtures    # DS-* 데모 픽스처와 거부 예제 재생성
+.\make.ps1 fixtures    # DS-* 데모 픽스처·거부 예제 + 안전거점 후보 목록 재생성
 .\make.ps1 contracts   # 모든 계약 픽스처 검증
 .\make.ps1 test        # Python 테스트
 .\make.ps1 typecheck   # TypeScript 검사
@@ -215,13 +219,17 @@ Windows·macOS를 섞어 쓴다. 아래는 **만든 사람 기계에서는 멀�
 > **임의의 안전정책을 만들어 넣지 않는다.**
 
 **2026-08-16 최종 회의가 OPEN 7개를 닫았고, 같은 날 O-11·O-12·O-15 가 닫혔다.
-2026-08-17 실사가 O-16 을 새로 열었다.** 남은 것은 둘이며 목록은
+2026-08-17 실사가 O-16 을 열었고 같은 날 팀장 승인으로 닫았다(C-28). C-32(안전거점 후보
+집합)도 소유자 결정으로 닫혔다.** 남은 것은 하나이며 목록은
 [docs/DECISIONS.md](docs/DECISIONS.md) 3절에 있다.
 
 - O-13 목적지 지정 지점 목록 확정 (좌표 `APPROX_UNVERIFIED`)
-- O-16 DQ-03 관측률 임계 `0.70` 을 이 재생 데이터에 적용할 것인가 —
-  RF 픽스처 4개가 전부 임계 아래(0.548~0.562)라 `classify()` 와 픽스처 등급이 어긋난다
-  ([REPOSITORY_AUDIT](docs/REPOSITORY_AUDIT.md) 10.1)
+
+**C-32 는 안전거점 후보 집합만 닫았다.** 대피시설 107곳을 경로 범위 1km 로 걸러 7곳으로
+고정했을 뿐이며(`contracts/safe_points.json`), 후보 순위·`relative_risk` 산식·수용인원
+반영·시설 상태 연동은 그대로 열려 있다. 기준을 새로 만든 것이 아니라 RT-15·O-09 에서
+이미 닫힌 범위를 적용한 것이라 이 절에 걸리지 않는다. **그 경계를 넘어 순위를 코드에
+넣지 않는다** — `tests/test_safe_points.py` 가 후보에 `rank`·`relative_risk` 가 섞이면 실패한다.
 
 규칙:
 
@@ -310,5 +318,6 @@ G3 이후로 미뤘다.
 | 무엇을 정했고 무엇을 아직 안 정했나 | [docs/DECISIONS.md](docs/DECISIONS.md) — 회의 확정은 2.3, OPEN은 3절 |
 | 지금 실제로 구현된 것 | [docs/REPOSITORY_AUDIT.md](docs/REPOSITORY_AUDIT.md) 6절 |
 | 계약이 무엇을 막는가 | `contracts/fixtures/invalid/` — 거부 예제가 답이다 |
+| 목적지·안전거점으로 무엇을 고를 수 있나 | `contracts/destinations.json`(`MOVE`, 초안 5개) · `contracts/safe_points.json`(`EVACUATE`, 확정 7곳) |
 | 장애가 나면 누가 무엇을 하나 | [docs/OPERATIONS.md](docs/OPERATIONS.md) |
 | 발표에서 무엇을 숨기지 말아야 하나 | [docs/HACKATHON_CHECKLIST.md](docs/HACKATHON_CHECKLIST.md) |

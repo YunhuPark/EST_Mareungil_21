@@ -14,7 +14,11 @@ from services.decision.enums import Action, Profile, RouteStatus, RouteTarget
 
 @dataclass(frozen=True)
 class DestinationPoint:
-    """RT-14. 경로 범위 내 지정 지점 목록에서 고른 1개."""
+    """RT-14. 경로 범위 내 지정 지점 목록에서 고른 1개.
+
+    목록의 정본은 `contracts/destinations.json` 이다. `EVACUATE` 의 도달 대상인
+    안전거점은 다른 목록(`contracts/safe_points.json`)에서 오며 섞지 않는다.
+    """
 
     id: str
     label: str
@@ -45,7 +49,12 @@ class RouteRequest:
 
 
 def target_for(action: Action) -> RouteTarget | None:
-    """RT-12. 행동별 도달 대상. 교차하지 않는다."""
+    """RT-12. 행동별 도달 대상. 교차하지 않는다.
+
+    `SAFE_POINT` 의 후보는 `contracts/safe_points.json` 의 7곳으로 닫혀 있다
+    (C-32). **닫힌 것은 후보 집합뿐이다** — 그중 어느 곳을 고를지, 후보를 어떤
+    순서로 놓을지는 정해지지 않았으므로 여기서 정하지 않는다.
+    """
     if action is Action.MOVE:
         return RouteTarget.USER_DESTINATION
     if action is Action.EVACUATE:

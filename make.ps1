@@ -268,9 +268,12 @@ switch ($Task) {
 
     'fixtures' {
         Assert-Venv
-        Write-Step 'DS 픽스처 재생성'
+        Write-Step 'DS 픽스처 · 안전거점 후보 목록 재생성'
         Push-Location $Root
-        try { & $Py scripts/build_demo_assess_fixtures.py } finally { Pop-Location }
+        try {
+            & $Py scripts/build_demo_assess_fixtures.py
+            & $Py scripts/build_safe_points.py --write
+        } finally { Pop-Location }
     }
 
     'contracts' {
@@ -331,7 +334,7 @@ switch ($Task) {
   .\make.ps1 web             프론트 개발 서버   http://127.0.0.1:5173
 
   .\make.ps1 contracts       모든 계약 픽스처 검증
-  .\make.ps1 fixtures        DS 픽스처 재생성
+  .\make.ps1 fixtures        DS 픽스처 · 안전거점 후보 목록 재생성
   .\make.ps1 test            Python 테스트
   .\make.ps1 webtest         프론트 smoke test
   .\make.ps1 typecheck       TypeScript 검사

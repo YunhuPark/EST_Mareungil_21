@@ -882,7 +882,7 @@
   },
   "data_quality": {
     "sensors_active": 32,
-    "observed_rate": 0.562,
+    "observed_rate": 0.956,
     "rain_available": true
   }
 }

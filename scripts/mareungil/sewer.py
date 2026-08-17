@@ -84,6 +84,33 @@ def extract_10min(windows: pd.DataFrame, verbose: bool = True) -> pd.DataFrame:
     return agg
 
 
+#: 10분 구간의 공칭 판독 수. `sample_count` 를 이 값으로 나눠 충족도를 낸다.
+NOMINAL_SAMPLES = 10
+
+
+def observed_rate(snap: pd.DataFrame) -> float:
+    """`data_quality.observed_rate` — 센서별 샘플링 충족도의 평균 (C-28 / O-16).
+
+    **이진 판정이 아니다.** 예전 식은 `sample_count >= 10` 인 센서의 비율이었는데
+    `sample_count` 의 중앙값이 정확히 10 이라 컷오프가 분포의 최빈값 바로 위에 놓였다.
+    판독 하나 빠진 센서(9개)가 통째로 미관측이 되어, 실제 손실 약 10% 가 지표에서
+    44포인트 하락으로 증폭됐다. 그래서 데모 사건에서 DQ-03 이 시점의 88.1% 에서
+    발화해 `DS-S1`·`DS-S6` 의 `SAFE` 와 어긋났다. 근거는 `docs/DECISIONS.md` 2.5.
+
+    **DQ-03 임계 0.70 은 바꾸지 않았다.** 계산식만 바꿨다.
+
+    이 함수가 정본이며 `build_demo_fixtures.py`(전체 재생성)와
+    `refresh_observed_rate.py`(재학습 없는 갱신) 두 경로가 같이 쓴다. 한쪽에만
+    식을 두면 다음 전체 재생성에서 값이 조용히 되돌아간다 — C-20 에서 실제로 밟았다.
+
+    Args:
+        snap: 한 시점의 센서 행들. `sample_count` 열이 있어야 한다.
+              **호출 전에 `evaluate.prepare()` 로 걸러진 집합을 넘긴다** —
+              `sensors_active` 와 분모가 같아야 하기 때문이다.
+    """
+    return round(float((snap["sample_count"] / NOMINAL_SAMPLES).clip(upper=1.0).mean()), 3)
+
+
 def reindex_full_grid(agg: pd.DataFrame, windows: pd.DataFrame) -> pd.DataFrame:
     """센서 x 사건창의 10분 격자를 빠짐없이 채운다.
 

@@ -17,9 +17,9 @@
 | 구분 | ID | 위치 | 계약 | 값의 출처 |
 |---|---|---|---|---|
 | 모델 위험 스냅샷 | `RF-S1`~`RF-S4`, `RF-E1` | `risk_*.json` (이 폴더 바로 아래) | `RiskAssessment` | **실제 모델 출력** |
-| 통합 데모 | `DS-S1`·`DS-S6`·`DS-S7`·`DS-S8` | `demo/` | `AssessResponse` | risk 블록은 실제 모델 출력, decision·route 는 **STUB** |
+| 통합 데모 | `DS-S1`·`DS-S6`·`DS-S7`·`DS-S8` (`DS-S2`~`DS-S5` 미작성) | `demo/` | `AssessResponse` | risk 블록은 실제 모델 출력, decision·route 는 **STUB** |
 | ②→③ 판단 산출 | `DS-S1` | `decision/` | `ActionDecision` | **STUB** — 판단 엔진 미구현 |
-| 공식정보 | — | `official/` | `OfficialInfo` | **채움 완료 · `VERIFIED_SOURCE`** (O-11 → C-25. 원출처 대조표 30건) |
+| 공식정보 | — | `official/` | `OfficialInfo` | **채움 완료 · `VERIFIED_SOURCE`** (O-11 → C-25. 원출처 대조표 30건). 목적지 차단 시연용 `official_demo_destination_blocked.json` 만 `DEMO_FIXTURE` |
 | 거부 예제 | — | `invalid/` | 각 파일이 선언 | 통과하면 검증 실패 |
 
 파일명은 호환을 위해 `risk_S1_calm.json` 그대로 두고, 문서·테스트에서만 `RF-` 접두사를 붙인다.
@@ -55,6 +55,19 @@
 `_` 로 시작하는 필드를 뺀 나머지는 전부 실제 모델 출력이며
 `scripts/build_demo_fixtures.py` 로 재생성된다. 이 사건(2022-08-08)은 **학습에서 완전히
 제외된 test 사건**이므로, 모델이 한 번도 본 적 없는 규모의 호우에 내놓은 값이다.
+
+**한 블록만 고칠 때는 전체 재생성을 돌리지 않는다.** 생성기는 모델을 재학습하므로
+센서별 확률까지 다시 만들어지는데, 그 값이 위 문단이 보증하는 "실제 모델 출력"이다.
+집계·품질 지표처럼 확률을 입력으로 받는 후처리는 전용 스크립트로 갱신한다.
+
+| 고칠 것 | 스크립트 |
+|---|---|
+| `area_risk` (TH-04 집계 규칙) | `scripts/refresh_area_risk.py --write` |
+| `data_quality.observed_rate` (C-28) | `scripts/refresh_observed_rate.py --write` |
+| 그 밖의 전부 | `scripts/build_demo_fixtures.py` (재학습) |
+
+셋 다 `risk_*.json` 을 고치므로, 끝나면 `.\make.ps1 fixtures` 로 `demo/` 에 전파한다.
+두 스크립트는 **원본 데이터(약 7.5GB)가 있어야 돌아간다.**
 
 ## `DS-*` — 통합 데모 (`demo/`)
 

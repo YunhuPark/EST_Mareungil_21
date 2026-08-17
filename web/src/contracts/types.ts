@@ -103,6 +103,12 @@ export interface RiskAssessment {
   /** 데이터 품질의 정본. DQ-01~05 판정이 읽는 값이며 최상위에 복사본을 두지 않는다. */
   data_quality: {
     sensors_active: number;
+    /**
+     * 센서별 샘플링 충족도 `min(sample_count/10, 1)` 의 평균이며 **이진 판정이 아니다** (C-28).
+     * DQ-03 은 이 값이 0.70 미만이면 품질 저하로 본다.
+     *
+     * UI 는 이 값으로 판정하지 않는다 — 등급·행동은 API 응답을 그대로 쓴다(CLAUDE.md 10절).
+     */
     observed_rate: number;
     rain_available: boolean;
     reason?: string | null;

@@ -210,7 +210,7 @@ usage() {
   ./make.sh web             프론트 개발 서버   http://127.0.0.1:5173
 
   ./make.sh contracts       모든 계약 픽스처 검증
-  ./make.sh fixtures        DS 픽스처 재생성
+  ./make.sh fixtures        DS 픽스처 · 안전거점 후보 목록 재생성
   ./make.sh test            Python 테스트
   ./make.sh webtest         프론트 smoke test
   ./make.sh typecheck       TypeScript 검사
@@ -278,8 +278,9 @@ case "$TASK" in
 
   fixtures)
     assert_venv
-    step 'DS 픽스처 재생성'
+    step 'DS 픽스처 · 안전거점 후보 목록 재생성'
     (cd "$ROOT" && "$PY" scripts/build_demo_assess_fixtures.py)
+    (cd "$ROOT" && "$PY" scripts/build_safe_points.py --write)
     ;;
 
   contracts) assert_venv; (cd "$ROOT" && "$PY" -m contracts.validate) ;;
