@@ -123,15 +123,14 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
 
       <main className="content">
         {data.source_kind === 'LIVE_PIPELINE' ? (
-          <p className="badge badge--live">
-            LIVE
-          </p>
-        ) : (
-          <p className="badge badge--stub">
-            {data.source_kind ?? 'FIXTURE'} — 시연용 고정 자료로 동작 중입니다. 예측·판단·경로 엔진이 아직
-            붙지 않았습니다.
-          </p>
-        )}
+  <p className="badge badge--live">
+    LIVE
+  </p>
+) : (
+  <p className="badge badge--stub">
+    FIXTURE — 재현 가능한 시연·검증용 고정 데이터를 사용하고 있습니다.
+  </p>
+)}
 
         <ActionCard
           action={decision.action}
