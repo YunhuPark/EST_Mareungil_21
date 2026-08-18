@@ -4,21 +4,28 @@
 
 지금 상태
 ---------
-**응답은 픽스처에서 나온다.** 예측·판단·경로 엔진이 붙기 전이므로 모든 응답에
-`source_kind: "FIXTURE"` 가 실린다. 이 값이 `LIVE_PIPELINE` 이 되기 전까지
-화면과 발표에서 "모델이 지금 계산한 결과"라고 말하지 않는다.
+`decision` 블록은 이제 `classify()`/`decide()`/`apply()`를 실제로 호출해 채운다
+(P0-5). `route` 블록은 여전히 경로 엔진이 붙기 전이라 픽스처의 STUB 값을 그대로
+쓴다 - `apply()`는 그 STUB 상태를 입력으로 받아 후처리 규칙만 실제로 적용한다.
 
-이 파일이 하는 일은 셋뿐이다.
+`source_kind`는 이번 배선에서 건드리지 않았다. FIXTURE/STUB/LIVE_PIPELINE 중
+지금 상태에 어떤 값이 맞는지(decision은 실제 계산, route는 여전히 STUB인
+혼합 상태)는 문서에서 확인이 안 돼 임의로 정하지 않았다 - `docs/DECISIONS.md`
+확인 또는 PM 확인 필요.
+
+이 파일이 하는 일은 넷이다.
 1. 픽스처를 읽고
-2. 사용자가 고른 목적지를 반영하고
-3. **돌려주기 전에 계약을 검증한다.**
+2. 사용자가 고른 목적지·프로필을 반영하고
+3. RiskSignals 로 변환해 `classify()`/`decide()`/`apply()`로 decision 블록을 채우고
+4. **돌려주기 전에 계약을 검증한다.**
 
-3번이 핵심이다. 계약 위반을 UI 가 아니라 여기서 잡아야 다섯 명이 병렬로 만들 때
+4번이 핵심이다. 계약 위반을 UI 가 아니라 여기서 잡아야 다섯 명이 병렬로 만들 때
 통합이 덜 깨진다.
 """
 
 from __future__ import annotations
 
+import json
 import os
 
 from fastapi import FastAPI, HTTPException, Query
@@ -32,7 +39,11 @@ from api.fixtures import (
     load_scenarios,
     load_validators,
 )
-from services.decision.enums import Profile
+from services.decision.adapters import signals_from
+from services.decision.decide import decide
+from services.decision.enums import Profile, RouteStatus
+from services.decision.postprocess import apply
+from services.decision.service_risk import classify
 
 CONTRACT_VERSION = os.environ.get("MAREUNGIL_CONTRACT_VERSION", "v1")
 DEFAULT_SCENARIO = os.environ.get("MAREUNGIL_DEFAULT_SCENARIO", "DS-S1")
@@ -115,6 +126,39 @@ def destinations() -> dict:
     }
 
 
+def _apply_decision_engine(body: dict) -> dict:
+    """RF 위험 -> classify() -> decide() -> 경로 상태 -> apply() 로 decision 블록을 채운다.
+
+    `risk` 블록은 이미 실제 모델 출력이다. `route` 는 아직 STUB 이므로 그 status 를
+    그대로 `apply()`에 넘긴다 - 후처리 규칙(CONFIRMED_TRANSITIONS·CONFIRMED_HOLDS)
+    자체는 실제로 동작한다.
+
+    `needs_route`는 계약(`assess_response.schema.json`의 allOf)이 **1차 행동
+    (`primary_action`) 기준**으로 강제한다 - 경로 후처리로 최종 행동이 바뀌어도
+    그대로다. 그래서 `post.action`이 아니라 `primary.needs_route`
+    (= `primary_action`에서 파생된 값)를 쓴다.
+    """
+    signals = signals_from(body)
+    risk_result = classify(signals)
+    primary = decide(signals)
+    post = apply(primary.action, RouteStatus(body["route"]["status"]))
+
+    reason_code = post.reason[0] if post.reason is not None else primary.reasons[0].code
+
+    out = json.loads(json.dumps(body))  # 원본 픽스처를 건드리지 않는다
+    out["decision"].pop("_stub", None)
+    out["decision"].update(
+        primary_action=primary.action.value,
+        action=post.action.value,
+        route_postprocess_applied=post.applied,
+        service_risk_level=risk_result.level.value,
+        needs_route=primary.needs_route,
+        reason_code=reason_code,
+        reasons=[r.as_dict() for r in primary.reasons],
+    )
+    return out
+
+
 @app.get("/api/assess")
 def assess(
     scenario: str = Query(default=DEFAULT_SCENARIO, description="재생 시나리오 id"),
@@ -160,6 +204,8 @@ def assess(
                 f"사용 가능: {sorted(m.value for m in Profile)}",
             )
         body = apply_profiles(body, profile)
+
+    body = _apply_decision_engine(body)
 
     violations = contract_errors(_validators, body)
     if violations:
