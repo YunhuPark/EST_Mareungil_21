@@ -63,11 +63,11 @@ export function MapPanel({ data }: { data: AssessResponse }) {
         const a = dx * Ax + dy * Ay;
         const b = dx * Bx + dy * By;
 
-        const midLat = (lat + target.lat) / 2;
-        const midLon = (lon + target.lon) / 2;
+        const midLat = (Number(lat) + Number(target.lat)) / 2;
+        const midLon = (Number(lon) + Number(target.lon)) / 2;
 
         // [DEMO] 침수 위험 통제 구역 (빨간 원) - 실제 지도 상의 물리적 크기 고정 (미터 단위)
-        L.circle([midLat, midLon], {
+        const dangerCircle = L.circle([midLat, midLon], {
           color: 'red',
           fillColor: '#ff0000',
           fillOpacity: 0.3,
@@ -75,7 +75,7 @@ export function MapPanel({ data }: { data: AssessResponse }) {
           weight: 2
         }).addTo(map);
 
-        // [DEMO] 배경 박스(칸)가 있는 텍스트 마커
+        // [DEMO] 배경 박스(칸)가 있는 텍스트를 원 정중앙에 고정
         const textIcon = L.divIcon({
           html: '<div style="color:red; font-weight:bold; font-size:11px; text-align:center; background:rgba(255,255,255,0.8); padding:2px 4px; border-radius:2px; border:1px solid red; white-space:nowrap;">침수위험구역</div>',
           className: '', // Leaflet 기본 마커 스타일 제거
@@ -84,19 +84,19 @@ export function MapPanel({ data }: { data: AssessResponse }) {
         });
         const textMarker = L.marker([midLat, midLon], { icon: textIcon, interactive: false });
 
-        // 지도를 너무 많이 축소하면 하얀 박스가 빨간 원보다 커져서 시야를 가리는 문제 해결
-        // 줌 레벨이 14 이상일 때만 글자 칸이 보이고, 축소하면 글자는 사라지게 함
-        const updateMarkerVisibility = () => {
+        // 지도를 축소하면 하얀 박스가 붉은 원을 벗어나 거대해지는 문제 방지
+        const updateVisibility = () => {
           if (!map) return;
-          if (map.getZoom() >= 14) {
+          // 줌 레벨이 15 이상(충분히 확대됨)일 때만 글자를 보여줌
+          if (map.getZoom() >= 15) {
             if (!map.hasLayer(textMarker)) textMarker.addTo(map);
           } else {
             if (map.hasLayer(textMarker)) map.removeLayer(textMarker);
           }
         };
 
-        map.on('zoomend', updateMarkerVisibility);
-        updateMarkerVisibility(); // 초기 렌더링 시 적용
+        map.on('zoomend', updateVisibility);
+        updateVisibility(); // 초기 렌더링 시 적용
 
         // [DEMO] 위험구역을 관통하는 기존 경로 (회색 점선)
         L.polyline(
