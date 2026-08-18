@@ -229,6 +229,10 @@ class RiskSignals:
     observed_rate: float | None = None
     rain_available: bool = True
     rain_past_60m_mm: float | None = None
+    rain_past_10m_mm: float | None = None
+    """TH-01. 최근 10분 누적 강우(mm). 행동 축(규칙 9)에서만 쓴다 - O-15 로
+    등급 축에는 넣지 않기로 확정됐다. P0-3 에서 추가된 필드다."""
+
     in_service_area: bool = True
 
 
