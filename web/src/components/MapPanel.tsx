@@ -55,7 +55,7 @@ export function MapPanel({ data }: { data: AssessResponse }) {
             [lat, lon],
             [target.lat, target.lon],
           ],
-          { weight: 4, dashArray: '8 6', opacity: 0.8 },
+          { weight: 4, dashArray: '8 6', opacity: 0.8, color: '#0066ff' },
         )
           .bindPopup('추천 후보 경로 (직선 표시 · 실제 경로 아님)')
           .addTo(map);
