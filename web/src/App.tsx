@@ -55,11 +55,14 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
   /**
-   * M-19. 고립 신고. 한 번 켜지면 이 화면이 사는 동안 꺼지지 않는다.
+   * M-19. 고립 신고. **지금 보고 있는 재생 시각에 매인 상태다.**
    *
-   * 재판단(M-18)·목적지 변경·프로필 변경 **어느 경로로 다시 불러도 함께 실어
-   * 보낸다.** 싣지 않으면 다음 요청에서 조용히 `EMERGENCY` 가 풀리는데, 그건
+   * 같은 상황을 다시 보는 요청 — 목적지 변경·프로필 변경 — 에는 함께 실어
+   * 보낸다. 싣지 않으면 다음 요청에서 조용히 `EMERGENCY` 가 풀리는데, 그건
    * 사용자가 취소한 것이 아니라 화면이 신고를 잊은 것이다.
+   *
+   * 재판단(M-18)으로 **시각을 바꾸면 해제한다.** 그건 다른 상황으로 넘어가는
+   * 것이라 앞 시각의 신고를 끌고 갈 근거가 없다.
    *
    * 판정은 서버가 한다 — 여기서 `action` 을 바꾸지 않는다(정책 재구현 금지).
    */
@@ -169,14 +172,15 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
         <ReassessBar
           list={scenarios}
           current={scenario}
-          onReassess={(id) =>
-            void load(
-              id,
-              decision.user_state.destination?.id,
-              profiles,
-              trapped,
-            )
-          }
+          onReassess={(id) => {
+            // 재생 시각을 바꾸는 것은 **다른 상황으로 넘어가는 것**이다. 앞
+            // 시각에서 한 신고를 끌고 가면 그 시나리오가 상정하지 않은 판정이
+            // 나온다 - DS-S1 을 골랐는데 EMERGENCY 가 뜨는 식이다.
+            // 목적지·프로필 변경과 다른 점이 여기다. 그쪽은 같은 상황을 다시
+            // 보는 것이라 신고가 남는다.
+            setTrapped(false);
+            void load(id, decision.user_state.destination?.id, profiles, false);
+          }}
           disabled={busy}
         />
 

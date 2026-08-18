@@ -45,6 +45,49 @@ def test_응답이_출처를_시나리오별로_밝힌다(client):
     assert stub["source_kind"] == "FIXTURE"
 
 
+def test_고립_신고가_행동을_EMERGENCY_로_바꾼다(client):
+    """M-19. 고립 신고는 `decide()` 규칙 1 이고 나머지 아홉을 전부 제친다.
+
+    `DS-S1` 은 평온한 시각이라 기본값 `MOVE` 로 떨어지는 시나리오다. 그 시나리오
+    에서 신고 하나로 `EMERGENCY` 가 나오는지를 본다 — 픽스처가 이미 고립인
+    `DS-S4` 로 확인하면 규칙이 도는 것인지 픽스처를 그대로 읽은 것인지 구분이
+    안 된다(C-21).
+
+    경로는 탐색하지 않는다. `EMERGENCY` 의 경로 상태는 `NOT_REQUIRED` 이며,
+    이 조합은 `STATUS_ALLOWED_FOR` 가 허용하는 자리다. 200 이 떴다는 것은
+    응답이 계약 검증까지 통과했다는 뜻이다.
+    """
+    before = client.get("/api/assess", params={"scenario": "DS-S1"}).json()
+    assert before["decision"]["action"] == "MOVE"
+    assert before["decision"]["user_state"]["trapped"] is False
+
+    res = client.get("/api/assess", params={"scenario": "DS-S1", "trapped": "true"})
+    assert res.status_code == 200, res.text
+    after = res.json()
+
+    assert after["decision"]["user_state"]["trapped"] is True
+    assert after["decision"]["action"] == "EMERGENCY"
+    assert after["route"]["status"] == "NOT_REQUIRED"
+
+    # 판단은 여전히 엔진이 한다. 신고가 출처를 픽스처로 되돌리지 않는다.
+    assert after["source_kind"] == "LIVE_PIPELINE"
+
+
+def test_고립_신고는_켜는_방향으로만_동작한다(client):
+    """`trapped=false` 가 픽스처의 고립 상태를 끄지 않는다.
+
+    끄는 방향을 열어 두면 화면이 기본값을 실어 보내는 것만으로 `DS-S4` 가
+    `EMERGENCY` 를 잃는다. 그건 사용자가 취소한 것이 아니라 기본값이 덮어쓴
+    것이다 — 신고는 사용자만 만들고, 아무도 대신 지우지 않는다.
+    """
+    body = client.get(
+        "/api/assess", params={"scenario": "DS-S4", "trapped": "false"}
+    ).json()
+
+    assert body["decision"]["user_state"]["trapped"] is True
+    assert body["decision"]["action"] == "EMERGENCY"
+
+
 def test_고립_신고가_EMERGENCY로_간다(client):
     """M-19. 고립 신고는 `decide()` 규칙 1 이며 다른 모든 신호보다 먼저 이긴다.
 

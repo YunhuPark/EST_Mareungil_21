@@ -10,6 +10,7 @@
  * 목록뿐이고, 표시 문구도 서버의 `clock_label` 을 그대로 쓴다(F-12).
  */
 
+import { SCENARIO_NOTE } from '../contracts/enums';
 import type { ScenarioList } from '../contracts/types';
 
 interface Props {
@@ -32,26 +33,38 @@ export function ReassessBar({ list, current, onReassess, disabled = false }: Pro
       </p>
 
       <ul className="reassess__options">
-        {options.map((s) => (
-          <li key={s.id}>
-            <button
-              type="button"
-              className={`reassess__button ${s.id === current ? 'reassess__button--current' : ''}`}
-              onClick={() => onReassess(s.id)}
-              disabled={disabled || s.id === current}
-              aria-current={s.id === current}
-            >
-              {s.clock_label}
-            </button>
-          </li>
-        ))}
-      </ul>
+        {options.map((s) => {
+          const note = SCENARIO_NOTE[s.id];
+          return (
+            <li key={s.id}>
+              <button
+                type="button"
+                className={`reassess__button ${s.id === current ? 'reassess__button--current' : ''}`}
+                onClick={() => onReassess(s.id)}
+                disabled={disabled || s.id === current}
+                aria-current={s.id === current}
+                /*
+                  설명은 이름이 아니라 **설명**으로 붙인다. 버튼 안에 넣으면
+                  읽히는 이름이 시각+상황으로 길어지는데, 이 버튼의 이름은
+                  여전히 재생 시각이다(F-12).
+                */
+                aria-describedby={note ? `reassess-note-${s.id}` : undefined}
+              >
+                {s.clock_label}
+              </button>
 
-      {list && list.pending.length > 0 && (
-        <p className="reassess__pending">
-          아직 만들지 않은 시각: {list.pending.join(' · ')}
-        </p>
-      )}
+              {note && (
+                <p
+                  className="reassess__note"
+                  id={`reassess-note-${s.id}`}
+                >
+                  {note}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

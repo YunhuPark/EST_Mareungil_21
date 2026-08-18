@@ -482,6 +482,15 @@ body {
   color: var(--ink-soft);
 }
 
+/* M-18 / M-32. 같은 재생 시각이 여러 개라 시각만으로는 버튼이 구분되지 않는다.
+   버튼 아래에 어떤 상황인지 한 줄로 붙인다. */
+.reassess__note {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
 /* --- 경로 (RT-02) -------------------------------------------------------- */
 
 .route--failed {

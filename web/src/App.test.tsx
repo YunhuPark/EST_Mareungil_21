@@ -164,9 +164,43 @@ describe('수동 재판단 (M-18)', () => {
     expect(picked).toEqual(['DS-S7']);
   });
 
-  it('아직 만들지 않은 시각을 있는 척하지 않는다', () => {
-    render(<ReassessBar list={list} current="DS-S1" onReassess={() => {}} />);
-    expect(screen.getByText(/아직 만들지 않은 시각/)).toBeDefined();
+  /**
+   * M-32. `DS-S4`·`DS-S7`·`DS-S8` 은 `clock_label` 이 셋 다
+   * `2022-08-08 21:40 재생` 이다. 시설 상태 시계열이 없어 시간 흐름이 아니라
+   * 상태 차이로 보여주기 때문인데, 그래서 **시각만 적으면 버튼이 구분되지
+   * 않는다.** 상황 설명이 버튼마다 붙어야 고를 수 있다.
+   */
+  it('같은 재생 시각이어도 버튼마다 어떤 상황인지 적는다 (M-32)', () => {
+    const sameClock = {
+      scenarios: [
+        { id: 'DS-S7', label: 'DS-S7', clock_label: '2022-08-08 21:40 재생', action: 'EVACUATE' as const },
+        { id: 'DS-S8', label: 'DS-S8', clock_label: '2022-08-08 21:40 재생', action: 'EVACUATE' as const },
+      ],
+      pending: [],
+    };
+    render(<ReassessBar list={sameClock} current="DS-S7" onReassess={() => {}} />);
+
+    expect(screen.getByText(/1순위 대피시설이 만석/)).toBeDefined();
+    expect(screen.getByText(/남은 곳이 없는 상태/)).toBeDefined();
+
+    // 설명은 버튼 이름이 아니라 설명으로 붙는다 — 이름은 여전히 재생 시각이다.
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(2);
+    expect(buttons[1]?.getAttribute('aria-describedby')).toBe('reassess-note-DS-S8');
+  });
+
+  it('설명이 없는 시나리오는 시각만 보여준다 — 지어내지 않는다', () => {
+    const unknown = {
+      scenarios: [
+        { id: 'DS-S1', label: 'DS-S1', clock_label: '2022-08-08 11:00 재생', action: 'MOVE' as const },
+        { id: 'DS-S9', label: 'DS-S9', clock_label: '2022-08-08 23:00 재생', action: 'WAIT' as const },
+      ],
+      pending: [],
+    };
+    render(<ReassessBar list={unknown} current="DS-S1" onReassess={() => {}} />);
+
+    const button = screen.getByRole('button', { name: '2022-08-08 23:00 재생' });
+    expect(button.getAttribute('aria-describedby')).toBeNull();
   });
 
   it('고를 수 있는 시각이 없으면 아무것도 그리지 않는다', () => {
