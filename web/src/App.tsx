@@ -128,7 +128,7 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
           </p>
         ) : (
           <p className="badge badge--stub">
-            FIXTURE — 시연용 고정 자료로 동작 중입니다. 예측·판단·경로 엔진이 아직
+            {data.source_kind ?? 'FIXTURE'} — 시연용 고정 자료로 동작 중입니다. 예측·판단·경로 엔진이 아직
             붙지 않았습니다.
           </p>
         )}
