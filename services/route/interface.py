@@ -27,6 +27,12 @@ class DestinationPoint:
 
 
 @dataclass(frozen=True)
+class RoutePoint:
+    lat: float
+    lon: float
+
+
+@dataclass(frozen=True)
 class RouteRequest:
     """경로 엔진 입력.
 
@@ -41,6 +47,7 @@ class RouteRequest:
     """
 
     primary_action: Action
+    origin: RoutePoint
     destination: DestinationPoint
     asof: str
     profiles: tuple[Profile, ...] = ()
