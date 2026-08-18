@@ -1001,10 +1001,10 @@
     "route_target": "SAFE_POINT",
     "target": {
       "kind": "SHELTER",
-      "id": "DEMO-SH-002",
-      "label": "합성 대피시설 2순위 — 실제 시설 아님",
-      "lat": 37.5011,
-      "lon": 127.0288,
+      "id": "SP-002",
+      "label": "서일중학교",
+      "lat": 37.49929,
+      "lon": 127.02218,
       "reason": "1순위 시설이 만석으로 확인돼 다음 후보로 전환했습니다. (합성값 DEMO_FIXTURE — 실제 시설 상태가 아닙니다)",
       "data_asof": "2022-08-08T21:40:00+09:00"
     },
@@ -1015,20 +1015,20 @@
     "detour_ratio": 1.12,
     "candidates": [
       {
-        "route_id": "DEMO-OFR-21",
-        "label": "합성 후보 1 — 1순위 시설 방면",
+        "route_id": "OFR-SP001",
+        "label": "서초초등학교 방면",
         "rank": 1,
         "relative_risk": 0.11,
-        "distance_m": 640,
+        "distance_m": 371,
         "excluded": true,
         "excluded_by": "SHELTER_FULL"
       },
       {
-        "route_id": "DEMO-OFR-22",
-        "label": "합성 후보 2 — 2순위 시설 방면",
+        "route_id": "OFR-SP002",
+        "label": "서일중학교 방면",
         "rank": 2,
         "relative_risk": 0.19,
-        "distance_m": 1120,
+        "distance_m": 503,
         "excluded": false,
         "excluded_by": null
       }

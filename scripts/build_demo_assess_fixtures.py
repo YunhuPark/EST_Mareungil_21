@@ -304,12 +304,13 @@ def build_ds_s1() -> dict:
 #
 # 두 픽스처의 risk 블록은 RF-S3(피크, 실제 모델 출력)이다. 시설 상태만 합성이다.
 
-#: 합성 대피시설. 실제 수해대피소 107개 원자료가 저장소에 없어 형식만 보인다.
-#: 좌표는 강남역 주변의 임의 지점이며 실제 시설 위치가 아니다.
+#: 대피시설 후보. contracts/safe_points.json 의 7곳 중 사용자 위치(강남역,
+#: 37.4979/127.0276)에서 가까운 순서대로 3곳을 쓴다. 시설 만석·폐쇄 상태는
+#: 합성값이며 실제 운영 상태가 아니다(M-24 DEMO_FIXTURE).
 DEMO_SHELTERS = [
-    {"id": "DEMO-SH-001", "label": "합성 대피시설 1순위 — 실제 시설 아님", "lat": 37.4995, "lon": 127.0301},
-    {"id": "DEMO-SH-002", "label": "합성 대피시설 2순위 — 실제 시설 아님", "lat": 37.5011, "lon": 127.0288},
-    {"id": "DEMO-SH-003", "label": "합성 대피시설 3순위 — 실제 시설 아님", "lat": 37.4962, "lon": 127.0334},
+    {"id": "SP-001", "label": "서초초등학교", "lat": 37.49952, "lon": 127.02393},
+    {"id": "SP-002", "label": "서일중학교", "lat": 37.49929, "lon": 127.02218},
+    {"id": "SP-003", "label": "서운중학교", "lat": 37.49398, "lon": 127.02452},
 ]
 
 #: M-24. 이 값이 합성이라는 표시. '개방·안전 확인 필요'(M-23)는 화면 쪽 상수이며
@@ -432,20 +433,20 @@ def build_ds_s7() -> dict:
         "detour_ratio": 1.12,
         "candidates": [
             {
-                "route_id": "DEMO-OFR-21",
-                "label": "합성 후보 1 — 1순위 시설 방면",
+                "route_id": "OFR-SP001",
+                "label": "서초초등학교 방면",
                 "rank": 1,
                 "relative_risk": 0.11,
-                "distance_m": 640,
+                "distance_m": 371,
                 "excluded": True,
                 "excluded_by": "SHELTER_FULL",
             },
             {
-                "route_id": "DEMO-OFR-22",
-                "label": "합성 후보 2 — 2순위 시설 방면",
+                "route_id": "OFR-SP002",
+                "label": "서일중학교 방면",
                 "rank": 2,
                 "relative_risk": 0.19,
-                "distance_m": 1120,
+                "distance_m": 503,
                 "excluded": False,
                 "excluded_by": None,
             },
@@ -500,29 +501,29 @@ def build_ds_s8() -> dict:
         "detour_ratio": None,
         "candidates": [
             {
-                "route_id": "DEMO-OFR-21",
-                "label": "합성 후보 1 — 1순위 시설 방면",
+                "route_id": "OFR-SP001",
+                "label": "서초초등학교 방면",
                 "rank": 1,
                 "relative_risk": 0.11,
-                "distance_m": 640,
+                "distance_m": 371,
                 "excluded": True,
                 "excluded_by": "SHELTER_FULL",
             },
             {
-                "route_id": "DEMO-OFR-22",
-                "label": "합성 후보 2 — 2순위 시설 방면",
+                "route_id": "OFR-SP002",
+                "label": "서일중학교 방면",
                 "rank": 2,
                 "relative_risk": 0.19,
-                "distance_m": 1120,
+                "distance_m": 503,
                 "excluded": True,
                 "excluded_by": "SHELTER_CLOSED",
             },
             {
-                "route_id": "DEMO-OFR-23",
-                "label": "합성 후보 3 — 3순위 시설 방면",
+                "route_id": "OFR-SP003",
+                "label": "서운중학교 방면",
                 "rank": 3,
                 "relative_risk": 0.24,
-                "distance_m": 1480,
+                "distance_m": 514,
                 "excluded": True,
                 "excluded_by": "SHELTER_INACCESSIBLE",
             },
