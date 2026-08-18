@@ -20,12 +20,14 @@ import { ProfilePicker } from './components/ProfilePicker';
 import { ReassessBar } from './components/ReassessBar';
 import fixture from '../../contracts/fixtures/demo/DS-S1.assess_response.json';
 import blockedDestination from '../../contracts/fixtures/demo/DS-S6.assess_response.json';
+import trapped from '../../contracts/fixtures/demo/DS-S4.assess_response.json';
 import shelterSwitch from '../../contracts/fixtures/demo/DS-S7.assess_response.json';
 import noSafePoint from '../../contracts/fixtures/demo/DS-S8.assess_response.json';
 import type { AssessResponse } from './contracts/types';
 
 const data = fixture as unknown as AssessResponse;
 const destinationBlocked = blockedDestination as unknown as AssessResponse;
+const trappedFixture = trapped as unknown as AssessResponse;
 const s7 = shelterSwitch as unknown as AssessResponse;
 const s8 = noSafePoint as unknown as AssessResponse;
 
@@ -87,6 +89,36 @@ describe('모바일 단일 화면', () => {
     expect(screen.queryByText(/재현 가능한 시연·검증용 고정 데이터/)).toBeNull();
   });
 
+  /**
+   * M-19. 고립 신고 버튼.
+   *
+   * `initialData` 를 주면 App 이 네트워크를 부르지 않으므로 여기서 보는 것은
+   * **버튼이 실제로 화면에 있는지**다. 이 검사가 없으면 `onTrapped` 를 넘기지
+   * 않아도 아무것도 빨개지지 않고, 버튼이 영영 렌더링되지 않은 채로 "고립 신고
+   * 넣었다"가 된다 — 실제로 PR #22 가 그 상태였다.
+   *
+   * 누른 뒤의 판정은 서버가 한다. 화면이 `EMERGENCY` 로 바꾸지 않는다.
+   */
+  it('고립 신고 버튼이 화면에 있고, 119 전화와 분리돼 있다 (M-19)', () => {
+    render(<App initialData={data} />);
+
+    const report = screen.getByRole('button', { name: '고립 신고' });
+    // 전화가 아니라 상태 입력이다. 링크였다면 누르는 순간 전화 앱이 열린다.
+    expect(report.tagName).toBe('BUTTON');
+    expect(report.getAttribute('href')).toBeNull();
+
+    // 실제 통화는 여전히 이 하나뿐이다.
+    expect(screen.getByRole('link', { name: /119/ }).getAttribute('href')).toBe('tel:119');
+  });
+
+  it('이미 고립으로 판정된 화면에는 신고 버튼을 두지 않는다 (M-19)', () => {
+    // DS-S4 는 픽스처가 이미 trapped 다. 누를 것이 없다.
+    render(<App initialData={trappedFixture} />);
+
+    expect(screen.queryByRole('button', { name: '고립 신고' })).toBeNull();
+    expect(screen.getByRole('link', { name: /119/ })).toBeDefined();
+  });
+
   it('목적지 선택은 지정 지점 목록 방식이다 (UI-10)', () => {
     render(<App initialData={data} />);
     const select = screen.getByLabelText('가려던 목적지');
@@ -132,9 +164,43 @@ describe('수동 재판단 (M-18)', () => {
     expect(picked).toEqual(['DS-S7']);
   });
 
-  it('아직 만들지 않은 시각을 있는 척하지 않는다', () => {
-    render(<ReassessBar list={list} current="DS-S1" onReassess={() => {}} />);
-    expect(screen.getByText(/아직 만들지 않은 시각/)).toBeDefined();
+  /**
+   * M-32. `DS-S4`·`DS-S7`·`DS-S8` 은 `clock_label` 이 셋 다
+   * `2022-08-08 21:40 재생` 이다. 시설 상태 시계열이 없어 시간 흐름이 아니라
+   * 상태 차이로 보여주기 때문인데, 그래서 **시각만 적으면 버튼이 구분되지
+   * 않는다.** 상황 설명이 버튼마다 붙어야 고를 수 있다.
+   */
+  it('같은 재생 시각이어도 버튼마다 어떤 상황인지 적는다 (M-32)', () => {
+    const sameClock = {
+      scenarios: [
+        { id: 'DS-S7', label: 'DS-S7', clock_label: '2022-08-08 21:40 재생', action: 'EVACUATE' as const },
+        { id: 'DS-S8', label: 'DS-S8', clock_label: '2022-08-08 21:40 재생', action: 'EVACUATE' as const },
+      ],
+      pending: [],
+    };
+    render(<ReassessBar list={sameClock} current="DS-S7" onReassess={() => {}} />);
+
+    expect(screen.getByText(/1순위 대피시설이 만석/)).toBeDefined();
+    expect(screen.getByText(/남은 곳이 없는 상태/)).toBeDefined();
+
+    // 설명은 버튼 이름이 아니라 설명으로 붙는다 — 이름은 여전히 재생 시각이다.
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(2);
+    expect(buttons[1]?.getAttribute('aria-describedby')).toBe('reassess-note-DS-S8');
+  });
+
+  it('설명이 없는 시나리오는 시각만 보여준다 — 지어내지 않는다', () => {
+    const unknown = {
+      scenarios: [
+        { id: 'DS-S1', label: 'DS-S1', clock_label: '2022-08-08 11:00 재생', action: 'MOVE' as const },
+        { id: 'DS-S9', label: 'DS-S9', clock_label: '2022-08-08 23:00 재생', action: 'WAIT' as const },
+      ],
+      pending: [],
+    };
+    render(<ReassessBar list={unknown} current="DS-S1" onReassess={() => {}} />);
+
+    const button = screen.getByRole('button', { name: '2022-08-08 23:00 재생' });
+    expect(button.getAttribute('aria-describedby')).toBeNull();
   });
 
   it('고를 수 있는 시각이 없으면 아무것도 그리지 않는다', () => {

@@ -34,6 +34,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.fixtures import (
     apply_destination,
     apply_profiles,
+    apply_trapped,
     contract_errors,
     load_destinations,
     load_safe_points,
@@ -227,6 +228,14 @@ def assess(
             "그 결과를 반영한다. (경사 가중치 1.5는 데이터 부재로 적용 불가)"
         ),
     ),
+    trapped: bool = Query(
+        default=False,
+        description=(
+            "M-19. 사용자가 직접 누른 고립 신고. decide() 규칙 1 이며 EMERGENCY 로 간다. "
+            "EVACUATE 경로 실패는 여기로 오지 않는다(M-15). 끄는 값을 보내도 픽스처의 "
+            "고립 상태를 뒤집지 않는다 — 켜는 방향으로만 동작한다."
+        ),
+    ),
 ) -> dict:
     """UI 가 받는 단일 응답.
 
@@ -261,6 +270,12 @@ def assess(
                 f"사용 가능: {sorted(m.value for m in Profile)}",
             )
         body = apply_profiles(body, profile)
+
+    if trapped:
+        # 켜는 방향으로만 적용한다. `trapped=false` 로 픽스처의 고립 상태를 끄면
+        # `DS-S4` 가 EMERGENCY 를 잃는데, 그건 사용자가 취소한 것이 아니라 기본값이
+        # 덮어쓴 것이다. 신고는 사용자만 만들고, 아무도 대신 지우지 않는다.
+        body = apply_trapped(body)
 
     body = _apply_decision_engine(body, profile)
 

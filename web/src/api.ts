@@ -23,10 +23,19 @@ export function fetchAssess(
   destinationId?: string,
   /** M-37. 순서 조정용이며 안전 기준을 완화하지 않는다. */
   profiles: string[] = [],
+  /**
+   * M-19. 사용자가 누른 고립 신고. `decide()` 규칙 1 이며 `EMERGENCY` 로 간다.
+   *
+   * 켜는 방향으로만 보낸다 — 거짓일 때는 아예 싣지 않는다. 신고를 끄는 것은
+   * 사용자가 할 수 있는 일이 아니고, 기본값으로 픽스처의 고립 상태를 덮어쓰면
+   * `DS-S4` 가 조용히 `EMERGENCY` 를 잃는다.
+   */
+  trapped = false,
 ): Promise<AssessResponse> {
   const params = new URLSearchParams({ scenario });
   if (destinationId) params.set('destination', destinationId);
   for (const p of profiles) params.append('profile', p);
+  if (trapped) params.set('trapped', 'true');
   return getJson<AssessResponse>(`/api/assess?${params.toString()}`);
 }
 
