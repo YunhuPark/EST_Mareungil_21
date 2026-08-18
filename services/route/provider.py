@@ -1,5 +1,3 @@
-import json
-from pathlib import Path
 from typing import Any, Optional
 
 from services.route.interface import (
@@ -142,43 +140,61 @@ class DesignatedPointRouteProvider(RouteProvider):
         
         return not_required("알 수 없는 행동입니다.")
 
-def provider_for(payload: dict) -> DesignatedPointRouteProvider:
-    safe_points_path = Path(__file__).parent.parent.parent / "contracts" / "safe_points.json"
-    with open(safe_points_path, "r", encoding="utf-8") as f:
-        sp_data = json.load(f)
-    
-    sensors = []
-    if "risk" in payload and "sensors" in payload["risk"]:
-        sensors = payload["risk"]["sensors"]
-        
+def provider_for(
+    payload: dict, safe_points: list[dict[str, Any]]
+) -> DesignatedPointRouteProvider:
+    """`payload` 한 건에 대한 실제 경로 엔진.
+
+    `sensors` 는 시나리오마다 다르므로 **요청마다** 만든다. 반대로 `safe_points` 는
+    7곳으로 닫혀 있어(C-32) 호출자가 한 번 읽어 넘긴다 - 여기서 파일을 열면 요청마다
+    디스크를 친다.
+
+    어느 시나리오가 LIVE 인지는 **데모 판단이라 여기서 정하지 않는다.** 그 분기는
+    `api/main.py` 가 들고 있다.
+    """
     return DesignatedPointRouteProvider(
-        safe_points=sp_data.get("points", []),
-        sensors=sensors
+        safe_points=safe_points,
+        sensors=payload.get("risk", {}).get("sensors", []),
     )
 
-def route_request_from(payload: dict, primary_action: Action, profiles: tuple[Profile, ...] = ()) -> RouteRequest:
-    loc = payload.get("location") or {}
-    origin = RoutePoint(lat=loc.get("lat", 0.0), lon=loc.get("lon", 0.0))
-    
-    dest_data = payload.get("destination") or {}
-    dest = DestinationPoint(
-        id=dest_data.get("id", ""),
-        label=dest_data.get("label", ""),
-        lat=dest_data.get("lat", 0.0),
-        lon=dest_data.get("lon", 0.0)
-    )
-    
-    risk_data = payload.get("risk") or {}
-    asof = risk_data.get("asof", "2022-08-08T21:40:00+09:00")
-    
-    official = payload.get("official") or {}
-    
+
+def route_request_from(
+    payload: dict, primary_action: Action, profiles: tuple[Profile, ...] = ()
+) -> RouteRequest:
+    """`AssessResponse` payload 에서 경로 엔진 입력을 만든다.
+
+    입력 7개는 전부 payload 안에 이미 있다 - 새로 계산하는 값이 없다.
+
+    **`api/main.py` 와 테스트가 같은 함수를 통과한다.** 한쪽만 payload 를 다르게
+    읽으면 "픽스처를 그대로 받는다"가 아니라 "정제하면 통과한다"를 증명하게 된다(C-21).
+    같은 이유로 `services/decision/adapters.py` 의 `signals_from()` 도 앱 코드 쪽에 있다.
+
+    `destination` 은 `RouteRequest` 의 필수 필드(F-19)인데 `EVACUATE` 시나리오처럼
+    `user_state.destination` 이 비어 있는 응답도 있다. `EVACUATE` 는 이 값을 쓰지
+    않으므로(`solve()` 의 `EVACUATE` 분기가 `request.destination` 을 참조하지 않는다)
+    `origin` 과 같은 좌표의 빈 자리표시자로 채운다 - `MOVE` 에서 목적지가 비는 경우는
+    없다(픽스처가 항상 기본 목적지를 채워 둔다).
+
+    **목적지는 `decision.user_state.destination` 에 있다.** payload 최상위에는 없다 -
+    최상위를 읽으면 조용히 `(0.0, 0.0)` 이 되어 `distance_m` 이 4,900km 로 나온다.
+    """
+    location = payload["location"]
+    origin = RoutePoint(lat=location["lat"], lon=location["lon"])
+
+    dest = payload["decision"]["user_state"].get("destination")
+    if dest is not None:
+        destination = DestinationPoint(
+            id=dest["id"], label=dest["label"], lat=dest["lat"], lon=dest["lon"]
+        )
+    else:
+        destination = DestinationPoint(id="", label="", lat=origin.lat, lon=origin.lon)
+
     return RouteRequest(
         primary_action=primary_action,
         origin=origin,
-        destination=dest,
-        asof=asof,
-        profiles=profiles,
-        official=official,
-        in_service_area=True
+        destination=destination,
+        asof=payload["risk"]["asof"],
+        profiles=tuple(Profile(pf) for pf in profiles),
+        official=payload.get("official", {}),
+        in_service_area=location["in_service_area"],
     )
