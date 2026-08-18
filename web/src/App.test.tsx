@@ -59,7 +59,32 @@ describe('모바일 단일 화면', () => {
 
   it('픽스처 기반임을 화면에 표시한다', () => {
     render(<App initialData={data} />);
-    expect(screen.getByText(/시연용 고정 자료로 동작 중/)).toBeDefined();
+    expect(screen.getByText(/재현 가능한 시연·검증용 고정 데이터/)).toBeDefined();
+  });
+
+  /**
+   * 배지는 `source_kind` 를 **읽어서** 말해야 한다. 문자열로 굳히면 안 된다.
+   *
+   * 계약의 enum 은 `FIXTURE` · `STUB` · `LIVE_PIPELINE` 셋이다. 지금 API 는
+   * `STUB` 을 내보내지 않지만, 굳혀 두면 내보내는 날 배지가 `FIXTURE` 라고
+   * 거짓말한다. 화면이 사실을 말하는지가 이 프로젝트의 한 줄이므로 굳히지 않는다.
+   *
+   * 이 테스트가 없어서 같은 하드코딩이 두 번 들어왔다 — 94b7bb7 이 넣었고
+   * 6092b0d(PR #11)가 뺐고 e1483cd(PR #18)가 다시 넣었다. 세 번째를 막는 것은
+   * 테스트뿐이다.
+   */
+  it('배지는 source_kind 를 그대로 말한다 (STUB)', () => {
+    const stubbed: AssessResponse = { ...data, source_kind: 'STUB' };
+    render(<App initialData={stubbed} />);
+    expect(screen.getByText(/^STUB —/)).toBeDefined();
+  });
+
+  it('배지는 LIVE_PIPELINE 이면 LIVE 로 바뀐다', () => {
+    const live: AssessResponse = { ...data, source_kind: 'LIVE_PIPELINE' };
+    render(<App initialData={live} />);
+    expect(screen.getByText('LIVE')).toBeDefined();
+    // 1단이라도 픽스처 문구가 남으면 화면이 두 가지를 동시에 말한다.
+    expect(screen.queryByText(/재현 가능한 시연·검증용 고정 데이터/)).toBeNull();
   });
 
   it('목적지 선택은 지정 지점 목록 방식이다 (UI-10)', () => {
