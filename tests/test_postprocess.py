@@ -16,12 +16,16 @@ from __future__ import annotations
 import pytest
 
 from services.decision import Action, ContractViolation, RouteStatus, apply
+from services.decision.enums import Basis
 from services.decision.postprocess import (
     CONFIRMED_HOLDS,
     CONFIRMED_TRANSITIONS,
     EMPHASIZE_EMERGENCY_CALL,
     SUSPEND_ROUTE_GUIDANCE,
+    final_reasons,
+    representative_code,
 )
+from services.decision.service_risk import MAX_REASONS, Reason
 
 
 def test_MOVE와_NO_SAFE_ROUTE는_WAIT로_바뀐다():
@@ -147,3 +151,64 @@ def test_후처리는_순수함수다():
     first = apply(Action.MOVE, RouteStatus.NO_SAFE_ROUTE)
     second = apply(Action.MOVE, RouteStatus.NO_SAFE_ROUTE)
     assert first == second
+
+
+# --- 이유 목록 합성 (final_reasons) -------------------------------------------
+
+
+def _reason(code: str) -> Reason:
+    return Reason(code, f"{code} 문구", Basis.TEAM_RULE)
+
+
+def test_경로_실패가_없으면_이유는_decide_출력_그대로다():
+    primary = (_reason("A"), _reason("B"))
+    post = apply(Action.MOVE, RouteStatus.FALLBACK_CANDIDATE)
+
+    assert [r.code for r in final_reasons(primary, post)] == ["A", "B"]
+
+
+def test_경로_실패_사유는_위험_사유_뒤에_붙는다():
+    """순서는 픽스처 규약을 따른다 — `DS-S8` 은 `[AI_AREA_HIGH, ROUTE_NO_SAFE_POINT]`."""
+    primary = (_reason("AI_AREA_HIGH"),)
+    post = apply(Action.EVACUATE, RouteStatus.NO_SAFE_POINT)
+
+    assert [r.code for r in final_reasons(primary, post)] == [
+        "AI_AREA_HIGH",
+        "ROUTE_NO_SAFE_POINT",
+    ]
+
+
+def test_상한을_넘으면_경로_사유가_살아남는다():
+    """**뒤에서 자르면 방금 붙인 사유가 먼저 사라진다.**
+
+    `decide()` 가 사유 3개를 냈는데 경로도 실패한 상황이다. 계약 상한은 3이므로
+    하나는 버려야 하는데, 버릴 것은 위험 사유 쪽이다 — 경로 실패는 사용자가 지금
+    마주친 것이고 화면 어디에도 다른 표시가 없다.
+    """
+    primary = (_reason("A"), _reason("B"), _reason("C"))
+    post = apply(Action.EVACUATE, RouteStatus.NO_SAFE_POINT)
+    codes = [r.code for r in final_reasons(primary, post)]
+
+    assert len(codes) == MAX_REASONS
+    assert codes == ["A", "B", "ROUTE_NO_SAFE_POINT"]
+
+
+def test_같은_사유를_두_번_싣지_않는다():
+    primary = (_reason("ROUTE_NO_SAFE_POINT"), _reason("A"))
+    post = apply(Action.EVACUATE, RouteStatus.NO_SAFE_POINT)
+    codes = [r.code for r in final_reasons(primary, post)]
+
+    assert codes.count("ROUTE_NO_SAFE_POINT") == 1
+    assert codes == ["A", "ROUTE_NO_SAFE_POINT"]
+
+
+def test_대표_사유는_경로_실패가_있으면_그것이다():
+    primary = (_reason("A"),)
+    assert (
+        representative_code(primary, apply(Action.EVACUATE, RouteStatus.NO_SAFE_POINT))
+        == "ROUTE_NO_SAFE_POINT"
+    )
+    assert (
+        representative_code(primary, apply(Action.MOVE, RouteStatus.FALLBACK_CANDIDATE))
+        == "A"
+    )

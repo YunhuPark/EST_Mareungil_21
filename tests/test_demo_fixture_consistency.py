@@ -46,7 +46,7 @@ from services.decision.enums import ServiceRiskLevel
 from services.decision.service_risk import classify
 
 #: 등급 축을 검사할 통합 응답 픽스처. 새 DS-* 를 만들면 여기 더한다.
-DEMO_FIXTURES = ["DS-S1", "DS-S6", "DS-S7", "DS-S8"]
+DEMO_FIXTURES = ["DS-S1", "DS-S4", "DS-S6", "DS-S7", "DS-S8"]
 
 
 @pytest.mark.parametrize("name", DEMO_FIXTURES)
