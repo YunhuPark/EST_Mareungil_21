@@ -45,6 +45,40 @@ def test_응답이_출처를_시나리오별로_밝힌다(client):
     assert stub["source_kind"] == "FIXTURE"
 
 
+def test_고립_신고가_EMERGENCY로_간다(client):
+    """M-19. 고립 신고는 `decide()` 규칙 1 이며 다른 모든 신호보다 먼저 이긴다.
+
+    `DS-S1` 은 평소 `MOVE` 다. 신고 하나로 `EMERGENCY` 가 되고 경로는
+    `NOT_REQUIRED` 가 된다 — 자력 이동이 어려운 상태에 경로를 안내하지 않는다.
+    """
+    before = client.get("/api/assess", params={"scenario": "DS-S1"}).json()
+    assert before["decision"]["action"] == "MOVE"
+    assert before["decision"]["user_state"]["trapped"] is False
+
+    res = client.get("/api/assess", params={"scenario": "DS-S1", "trapped": "true"})
+    assert res.status_code == 200, res.text
+    after = res.json()
+
+    assert after["decision"]["user_state"]["trapped"] is True
+    assert after["decision"]["action"] == "EMERGENCY"
+    assert after["route"]["status"] == "NOT_REQUIRED"
+    # 판정이 바뀐 것이지 출처가 바뀐 것이 아니다.
+    assert after["source_kind"] == before["source_kind"]
+
+
+def test_고립_신고는_끄는_방향으로_동작하지_않는다(client):
+    """`trapped=false` 가 픽스처의 고립 상태를 뒤집으면 안 된다.
+
+    기본값이 `False` 라서, 끄는 방향까지 적용하면 `DS-S4` 를 그냥 불렀을 때
+    `EMERGENCY` 가 조용히 풀린다. 그건 사용자가 취소한 것이 아니라 기본값이
+    덮어쓴 것이다. **신고는 사용자만 만들고 아무도 대신 지우지 않는다.**
+    """
+    for params in ({"scenario": "DS-S4"}, {"scenario": "DS-S4", "trapped": "false"}):
+        body = client.get("/api/assess", params=params).json()
+        assert body["decision"]["user_state"]["trapped"] is True, params
+        assert body["decision"]["action"] == "EMERGENCY", params
+
+
 def test_UI가_항상_표시할_값이_들어있다(client):
     """설계서 12장. 위험·위치·행동·시각·119 문구·면책."""
     body = client.get("/api/assess").json()

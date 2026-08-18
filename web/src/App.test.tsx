@@ -20,12 +20,14 @@ import { ProfilePicker } from './components/ProfilePicker';
 import { ReassessBar } from './components/ReassessBar';
 import fixture from '../../contracts/fixtures/demo/DS-S1.assess_response.json';
 import blockedDestination from '../../contracts/fixtures/demo/DS-S6.assess_response.json';
+import trapped from '../../contracts/fixtures/demo/DS-S4.assess_response.json';
 import shelterSwitch from '../../contracts/fixtures/demo/DS-S7.assess_response.json';
 import noSafePoint from '../../contracts/fixtures/demo/DS-S8.assess_response.json';
 import type { AssessResponse } from './contracts/types';
 
 const data = fixture as unknown as AssessResponse;
 const destinationBlocked = blockedDestination as unknown as AssessResponse;
+const trappedFixture = trapped as unknown as AssessResponse;
 const s7 = shelterSwitch as unknown as AssessResponse;
 const s8 = noSafePoint as unknown as AssessResponse;
 
@@ -85,6 +87,36 @@ describe('모바일 단일 화면', () => {
     expect(screen.getByText('LIVE')).toBeDefined();
     // 1단이라도 픽스처 문구가 남으면 화면이 두 가지를 동시에 말한다.
     expect(screen.queryByText(/재현 가능한 시연·검증용 고정 데이터/)).toBeNull();
+  });
+
+  /**
+   * M-19. 고립 신고 버튼.
+   *
+   * `initialData` 를 주면 App 이 네트워크를 부르지 않으므로 여기서 보는 것은
+   * **버튼이 실제로 화면에 있는지**다. 이 검사가 없으면 `onTrapped` 를 넘기지
+   * 않아도 아무것도 빨개지지 않고, 버튼이 영영 렌더링되지 않은 채로 "고립 신고
+   * 넣었다"가 된다 — 실제로 PR #22 가 그 상태였다.
+   *
+   * 누른 뒤의 판정은 서버가 한다. 화면이 `EMERGENCY` 로 바꾸지 않는다.
+   */
+  it('고립 신고 버튼이 화면에 있고, 119 전화와 분리돼 있다 (M-19)', () => {
+    render(<App initialData={data} />);
+
+    const report = screen.getByRole('button', { name: '고립 신고' });
+    // 전화가 아니라 상태 입력이다. 링크였다면 누르는 순간 전화 앱이 열린다.
+    expect(report.tagName).toBe('BUTTON');
+    expect(report.getAttribute('href')).toBeNull();
+
+    // 실제 통화는 여전히 이 하나뿐이다.
+    expect(screen.getByRole('link', { name: /119/ }).getAttribute('href')).toBe('tel:119');
+  });
+
+  it('이미 고립으로 판정된 화면에는 신고 버튼을 두지 않는다 (M-19)', () => {
+    // DS-S4 는 픽스처가 이미 trapped 다. 누를 것이 없다.
+    render(<App initialData={trappedFixture} />);
+
+    expect(screen.queryByRole('button', { name: '고립 신고' })).toBeNull();
+    expect(screen.getByRole('link', { name: /119/ })).toBeDefined();
   });
 
   it('목적지 선택은 지정 지점 목록 방식이다 (UI-10)', () => {

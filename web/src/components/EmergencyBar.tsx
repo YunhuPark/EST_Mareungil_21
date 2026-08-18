@@ -14,11 +14,23 @@ import { useState } from 'react';
 interface Props {
   /** 확대 여부. action === 'EMERGENCY' 일 때만 켠다. */
   urgent: boolean;
-
+  /**
+   * M-15. `EVACUATE` 인데 갈 곳·길·근거가 없을 때의 강조.
+   *
+   * `urgent` 와 **다른 단계**다. 레이아웃을 EMERGENCY 로 승격하면 화면이
+   * "구조를 요청하라"로 읽히는데, 그 상태의 행동은 여전히 대피다. 그래서
+   * 한 줄 안내만 덧붙인다.
+   */
   emphasis?: boolean;
   locationText: string;
   note?: string | null;
-
+  /**
+   * M-19. 고립 신고를 눌렀을 때. **넘기지 않으면 버튼이 아예 렌더링되지 않는다.**
+   *
+   * 이 버튼은 상태를 입력할 뿐 전화를 걸지 않는다. 실제 통화는 아래 `119 전화`
+   * 하나만 담당한다 — 서비스가 대신 신고하거나 위치를 보내지 않는다는 약속을
+   * 버튼 하나로 무너뜨리지 않기 위해서다.
+   */
   onTrapped?: () => void;
   trappedBusy?: boolean;
 }

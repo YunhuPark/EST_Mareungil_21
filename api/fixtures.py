@@ -118,3 +118,24 @@ def apply_profiles(response: dict[str, Any], profiles: list[str]) -> dict[str, A
     out = json.loads(json.dumps(response))
     out["decision"]["user_state"]["profiles"] = list(profiles)
     return out
+
+
+def apply_trapped(response: dict[str, Any]) -> dict[str, Any]:
+    """사용자가 누른 고립 신고를 응답에 반영한다.
+
+    `decide()` 의 규칙 1 이고 다른 모든 신호보다 먼저 이긴다 — 결과는 `EMERGENCY`
+    다. **이 입력만이 `EMERGENCY` 로 가는 길이다**(M-19 · CLAUDE.md 9절).
+    `EVACUATE` 의 경로 실패는 여기로 오지 않으며, 그쪽은 119 를 강조하는 한 줄
+    안내로 끝난다(M-15). 강조와 신고는 다른 단계다.
+
+    **끄는 경로를 두지 않는다.** 고립은 사용자가 껐다 켰다 할 상태가 아니라
+    상황이 끝나야 끝나는 상태다. 취소를 만들면 화면이 `EMERGENCY` 와 `MOVE`
+    사이를 오가고, 그건 M-17 · M-39 가 등급 축에서 막아 둔 진동을 행동 축에
+    다시 들이는 것이다. 재판단(M-18)을 눌러도 신고는 남는다.
+
+    판단은 여전히 엔진이 하므로 `source_kind` 를 건드리지 않는다. 바꾸는 것은
+    **입력 한 칸**뿐이다.
+    """
+    out = json.loads(json.dumps(response))
+    out["decision"]["user_state"]["trapped"] = True
+    return out

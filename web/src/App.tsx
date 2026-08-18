@@ -54,12 +54,28 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
   // 순서를 다시 매기지 않는다 — 정책 재구현 금지(CLAUDE.md 10절).
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
+  /**
+   * M-19. 고립 신고. 한 번 켜지면 이 화면이 사는 동안 꺼지지 않는다.
+   *
+   * 재판단(M-18)·목적지 변경·프로필 변경 **어느 경로로 다시 불러도 함께 실어
+   * 보낸다.** 싣지 않으면 다음 요청에서 조용히 `EMERGENCY` 가 풀리는데, 그건
+   * 사용자가 취소한 것이 아니라 화면이 신고를 잊은 것이다.
+   *
+   * 판정은 서버가 한다 — 여기서 `action` 을 바꾸지 않는다(정책 재구현 금지).
+   */
+  const [trapped, setTrapped] = useState(false);
+
   const load = useCallback(
-    async (scenarioId: string, destinationId?: string, picked: Profile[] = []) => {
+    async (
+      scenarioId: string,
+      destinationId?: string,
+      picked: Profile[] = [],
+      isTrapped = false,
+    ) => {
       setBusy(true);
 
       try {
-        setData(await fetchAssess(scenarioId, destinationId, picked));
+        setData(await fetchAssess(scenarioId, destinationId, picked, isTrapped));
         setScenario(scenarioId);
         setError(null);
       } catch (e) {
@@ -158,6 +174,7 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
               id,
               decision.user_state.destination?.id,
               profiles,
+              trapped,
             )
           }
           disabled={busy}
@@ -171,6 +188,7 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
               scenario,
               id,
               profiles,
+              trapped,
             )
           }
           disabled={busy}
@@ -186,6 +204,7 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
               scenario,
               decision.user_state.destination?.id,
               picked,
+              trapped,
             );
           }}
           disabled={busy}
@@ -216,6 +235,25 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
         emphasis={emphasize119}
         locationText={`${location.label} (재생 시각 ${clock.label})`}
         note={notice.emergency_note}
+        /*
+          M-19. 이미 고립으로 판정된 화면에서는 버튼을 내린다 — 누를 것이 없다.
+          `trapped` 상태가 아니라 응답의 `user_state.trapped` 를 본다. `DS-S4`
+          처럼 픽스처가 이미 고립인 경우도 같이 걸러야 하기 때문이다.
+        */
+        onTrapped={
+          decision.user_state.trapped
+            ? undefined
+            : () => {
+                setTrapped(true);
+                void load(
+                  scenario,
+                  decision.user_state.destination?.id,
+                  profiles,
+                  true,
+                );
+              }
+        }
+        trappedBusy={busy}
       />
 
       {/* UI-07. 어떤 상태에서도 사라지지 않는다. */}
