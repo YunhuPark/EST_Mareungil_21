@@ -49,6 +49,7 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
   const [scenario, setScenario] = useState(DEFAULT_SCENARIO);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
   // M-37. 프로필은 화면 상태로 들고 있다가 요청에 실어 보낸다. UI 가 프로필로
   // 순서를 다시 매기지 않는다 — 정책 재구현 금지(CLAUDE.md 10절).
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -56,6 +57,7 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
   const load = useCallback(
     async (scenarioId: string, destinationId?: string, picked: Profile[] = []) => {
       setBusy(true);
+
       try {
         setData(await fetchAssess(scenarioId, destinationId, picked));
         setScenario(scenarioId);
@@ -72,17 +74,25 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
   useEffect(() => {
     // 테스트에서 initialData 를 주면 네트워크를 부르지 않는다.
     if (!initialData) void load(DEFAULT_SCENARIO);
-    fetchDestinations().then(setList).catch(() => setList(null));
-    fetchScenarios().then(setScenarios).catch(() => setScenarios(null));
+
+    fetchDestinations()
+      .then(setList)
+      .catch(() => setList(null));
+
+    fetchScenarios()
+      .then(setScenarios)
+      .catch(() => setScenarios(null));
   }, [initialData, load]);
 
   if (error && !data) {
     return (
       <main className="page page--error">
         <h1>응답을 불러오지 못했습니다</h1>
+
         <p className="page__hint">
           백엔드가 떠 있는지 확인하세요 — <code>.\make.ps1 api</code>
         </p>
+
         <pre className="page__error">{error}</pre>
       </main>
     );
@@ -100,7 +110,8 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
 
   // M-15. 강조는 EMERGENCY 승격이 아니다 — 행동은 여전히 EVACUATE 다.
   const emphasize119 =
-    decision.primary_action === 'EVACUATE' && EVACUATE_ROUTE_FAILURE.includes(route.status);
+    decision.primary_action === 'EVACUATE' &&
+    EVACUATE_ROUTE_FAILURE.includes(route.status);
 
   return (
     <div className="page">
@@ -111,10 +122,14 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
       />
 
       <main className="content">
-        {data.source_kind !== 'LIVE_PIPELINE' && (
+        {data.source_kind === 'LIVE_PIPELINE' ? (
+          <p className="badge badge--live">
+            LIVE
+          </p>
+        ) : (
           <p className="badge badge--stub">
-            시연용 고정 자료로 동작 중입니다 ({data.source_kind ?? 'FIXTURE'}). 예측·판단·경로
-            엔진이 아직 붙지 않았습니다.
+            {data.source_kind ?? 'FIXTURE'} — 시연용 고정 자료로 동작 중입니다. 예측·판단·경로 엔진이 아직
+            붙지 않았습니다.
           </p>
         )}
 
@@ -131,19 +146,34 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
           M-24 / M-36. 공식정보를 어떤 상태로 받았는지, 그리고 이 재생 시각에
           무엇이 공개돼 있었는지를 숨기지 않는다. 시각 필터는 서버가 건다.
         */}
-        <OfficialPanel official={data.official} clockLabel={clock.label} />
+        <OfficialPanel
+          official={data.official}
+          clockLabel={clock.label}
+        />
 
         <ReassessBar
           list={scenarios}
           current={scenario}
-          onReassess={(id) => void load(id, decision.user_state.destination?.id, profiles)}
+          onReassess={(id) =>
+            void load(
+              id,
+              decision.user_state.destination?.id,
+              profiles,
+            )
+          }
           disabled={busy}
         />
 
         <DestinationPicker
           list={list}
           selected={decision.user_state.destination}
-          onSelect={(id) => void load(scenario, id, profiles)}
+          onSelect={(id) =>
+            void load(
+              scenario,
+              id,
+              profiles,
+            )
+          }
           disabled={busy}
         />
 
@@ -152,7 +182,12 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
           applied={route.profile_applied ?? []}
           onChange={(picked) => {
             setProfiles(picked);
-            void load(scenario, decision.user_state.destination?.id, picked);
+
+            void load(
+              scenario,
+              decision.user_state.destination?.id,
+              picked,
+            );
           }}
           disabled={busy}
         />
@@ -168,7 +203,10 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
         <MapPanel data={data} />
 
         {error && (
-          <p className="badge badge--warn" role="alert">
+          <p
+            className="badge badge--warn"
+            role="alert"
+          >
             갱신에 실패해 이전 응답을 표시하고 있습니다.
           </p>
         )}
@@ -182,7 +220,10 @@ export function App({ initialData }: { initialData?: AssessResponse } = {}) {
       />
 
       {/* UI-07. 어떤 상태에서도 사라지지 않는다. */}
-      <footer className="disclaimer" role="contentinfo">
+      <footer
+        className="disclaimer"
+        role="contentinfo"
+      >
         {notice.disclaimer}
       </footer>
     </div>

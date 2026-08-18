@@ -24,7 +24,15 @@ param(
 $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
 $Venv = Join-Path $Root '.venv'
-$Py = Join-Path $Venv 'Scripts\python.exe'
+# $IsWindows 는 PowerShell 6+ 에만 있는 자동 변수다. Windows PowerShell 5.1
+# (Desktop 판) 에서는 정의되지 않아 $null 로 읽히고, 그대로 else 로 빠져
+# **Windows 인데 .venv/bin/python 을 잡는다.** Desktop 판은 Windows 전용이므로
+# 그것을 Windows 신호로 함께 본다.
+if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') {
+    $Py = Join-Path $Venv 'Scripts\python.exe'
+} else {
+    $Py = Join-Path $Venv 'bin/python'
+}
 $WebDir = Join-Path $Root 'web'
 $LogDir = Join-Path $Root 'logs'
 
