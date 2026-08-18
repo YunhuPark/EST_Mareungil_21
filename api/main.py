@@ -46,8 +46,11 @@ from services.decision.enums import Action, Profile, RouteStatus
 from services.decision.postprocess import apply
 from services.decision.service_risk import classify
 from services.route.fixture_provider import FixtureRouteProvider
-from services.route.interface import DestinationPoint, RouteProvider, RouteRequest, RoutePoint
-from services.route.provider import DesignatedPointRouteProvider
+from services.route.interface import RouteProvider, RouteRequest
+from services.route.provider import (
+    provider_for as designated_provider_for,
+    route_request_from,
+)
 
 CONTRACT_VERSION = os.environ.get("MAREUNGIL_CONTRACT_VERSION", "v1")
 DEFAULT_SCENARIO = os.environ.get("MAREUNGIL_DEFAULT_SCENARIO", "DS-S1")
@@ -138,39 +141,6 @@ def destinations() -> dict:
     }
 
 
-def route_request_from(body: dict, primary_action: Action, profiles: list[str]) -> RouteRequest:
-    """진행 중인 `AssessResponse` body 에서 경로 엔진 입력을 만든다.
-
-    입력 7개는 전부 body 안에 이미 있다 - 새로 계산하는 값이 없다.
-
-    `destination`은 `RouteRequest`의 필수 필드(F-19)인데, `EVACUATE` 시나리오처럼
-    `user_state.destination`이 비어 있는 응답도 있다. `EVACUATE`는 이 값을 쓰지
-    않으므로(`provider.py`의 `EVACUATE` 분기가 `request.destination`을 참조하지
-    않는다) `origin`과 같은 좌표의 빈 자리표시자로 채운다 - `MOVE`에서 목적지가
-    비는 경우는 없다(픽스처가 항상 기본 목적지를 채워 둔다).
-    """
-    location = body["location"]
-    origin = RoutePoint(lat=location["lat"], lon=location["lon"])
-
-    dest = body["decision"]["user_state"].get("destination")
-    if dest is not None:
-        destination = DestinationPoint(
-            id=dest["id"], label=dest["label"], lat=dest["lat"], lon=dest["lon"]
-        )
-    else:
-        destination = DestinationPoint(id="", label="", lat=origin.lat, lon=origin.lon)
-
-    return RouteRequest(
-        primary_action=primary_action,
-        origin=origin,
-        destination=destination,
-        asof=body["risk"]["asof"],
-        profiles=tuple(Profile(p) for p in profiles),
-        official=body.get("official", {}),
-        in_service_area=location["in_service_area"],
-    )
-
-
 def provider_for(body: dict) -> RouteProvider:
     """시나리오별로 실제 경로 엔진과 픽스처 STUB 을 가른다.
 
@@ -179,11 +149,14 @@ def provider_for(body: dict) -> RouteProvider:
     STUB 을 그대로 쓴다. `FixtureRouteProvider.solve()`는 `scenario` 인자가 하나
     더 필요해서 시그니처가 다르므로, 여기서 얇게 감싸 두 provider가 같은
     `solve(request)` 하나로 호출되게 맞춘다.
+
+    **어느 시나리오가 LIVE 인지만 여기서 정한다.** 엔진을 만드는 일과 payload 를
+    `RouteRequest` 로 옮기는 일은 `services/route/provider.py` 가 한다 - 테스트가
+    같은 함수를 통과해야 하기 때문이다(C-21).
     """
     scenario = body.get("_scenario")
     if scenario in LIVE_SCENARIOS:
-        sensors = body.get("risk", {}).get("sensors", [])
-        return DesignatedPointRouteProvider(safe_points=_safe_points, sensors=sensors)
+        return designated_provider_for(body, _safe_points)
 
     class _BoundFixtureProvider:
         def solve(self, request: RouteRequest) -> dict[str, Any]:
