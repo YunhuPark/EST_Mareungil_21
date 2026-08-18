@@ -24,7 +24,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
 $Venv = Join-Path $Root '.venv'
-$Py = Join-Path $Venv 'Scripts\python.exe'
+if ($IsWindows) {
+    $Py = Join-Path $Venv 'Scripts\python.exe'
+} else {
+    $Py = Join-Path $Venv 'bin/python'
+}
 $WebDir = Join-Path $Root 'web'
 $LogDir = Join-Path $Root 'logs'
 
