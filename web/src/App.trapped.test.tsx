@@ -88,6 +88,10 @@ describe('고립 신고의 수명 (M-19)', () => {
     fireEvent.click(screen.getByRole('button', { name: '고립 신고' }));
     await waitFor(() => expect(spy.calls.length).toBe(1));
 
+    // 재생 시각 칩은 과거기록 탭에 있다. 탭 전환만으로는 다시 요청하지 않는다.
+    fireEvent.click(screen.getByRole('tab', { name: '과거기록' }));
+    expect(spy.calls.length).toBe(1);
+
     // 다른 시각으로 넘어간다. 앞 시각의 신고는 여기 따라오지 않는다.
     const other = await screen.findByRole('button', { name: '2022-08-08 21:40 재생' });
     fireEvent.click(other);

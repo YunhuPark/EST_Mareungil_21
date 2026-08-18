@@ -13,6 +13,7 @@ import type {
   Profile,
   RouteStatus,
   RouteTarget,
+  SensorLocationQuality,
   ServiceRiskLevel,
   UserContext,
 } from './enums';
@@ -26,6 +27,7 @@ export type {
   Profile,
   RouteStatus,
   RouteTarget,
+  SensorLocationQuality,
   ServiceRiskLevel,
   UserContext,
 };
@@ -91,7 +93,21 @@ export interface SensorReading {
   /** 단위 미확인. 화면에 m·cm 를 붙이지 않는다(AI-07). */
   predicted_level_unit: 'UNCONFIRMED';
   physical_fill_ratio: null;
-  location: { lat: number | null; lon: number | null; quality: string };
+  location: { lat: number | null; lon: number | null; quality: SensorLocationQuality };
+  /**
+   * 경로 범위(강남역 반경 1km) 안인가. **서버가 정한다** — 화면은 거리를 다시
+   * 계산하지 않는다. 좌표가 없으면 `false` 이므로 위치를 모르는 센서는 지도에
+   * 올라오지 않는다.
+   */
+  in_area_scope: boolean;
+  /**
+   * t+30 고수위 확률이 임계 이상인가. `area_risk` 비율의 분자를 정한 그 판정을
+   * 그대로 받는다 — 화면은 임계를 다시 적용하지 않는다(CLAUDE.md 10절).
+   *
+   * 확률이 없으면 `null` 이다. **`false` 로 읽지 않는다** — '임계 미만'과
+   * '판단할 값이 없다'는 다른 상태이고, 화면도 둘을 다르게 그린다.
+   */
+  exceeds_sensor_threshold: boolean | null;
 }
 
 export interface RiskAssessment {

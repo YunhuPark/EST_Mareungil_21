@@ -1,4 +1,4 @@
-"""기존 픽스처의 `area_risk` 블록만 다시 계산한다. **모델을 다시 학습하지 않는다.**
+"""기존 픽스처의 `area_risk` 블록과 센서별 판정만 다시 계산한다. **모델을 다시 학습하지 않는다.**
 
     python scripts/refresh_area_risk.py            # 미리보기
     python scripts/refresh_area_risk.py --write    # 실제로 저장
@@ -12,6 +12,10 @@
 
 두 경로 모두 `mareungil/area_risk.py` 의 같은 함수를 쓴다.
 `tests/test_area_risk.py` 가 픽스처와 규칙이 어긋나지 않는지 계속 확인한다.
+
+센서별 `in_area_scope` · `exceeds_sensor_threshold` 도 여기서 찍는다(`annotate()`).
+`area_risk` 비율을 만든 판정과 **같은 호출에서** 나와야 지도의 점 개수와
+`basis` 의 "n/m" 이 어긋나지 않는다.
 """
 
 from __future__ import annotations
@@ -68,6 +72,15 @@ def main(argv: list[str]) -> int:
         before = body.get("area_risk", {})
         after = area_risk.compute(sensors, scope)
 
+        # 센서별 판정도 같은 호출에서 찍는다. 지도가 임계를 다시 적용하지 않게
+        # 하려면(CLAUDE.md 10절) 비율을 만든 그 판정이 응답에 실려야 한다.
+        body["sensors"] = area_risk.annotate(sensors, scope)
+        # basis 의 "n/m" 과 같은 수를 센다. 두 조건을 함께 봐야 한다 -
+        # 범위 안이면서 확률이 없는 센서는 분모에 들어가지 않는다.
+        judged = [x for x in body["sensors"]
+                  if x["in_area_scope"] and x["exceeds_sensor_threshold"] is not None]
+        over = sum(1 for x in judged if x["exceeds_sensor_threshold"])
+
         # O-01 이 닫혔으므로 미확정 표시를 뗀다.
         for stale in ("_open_th04", "_open"):
             after.pop(stale, None)
@@ -87,6 +100,8 @@ def main(argv: list[str]) -> int:
         print(f"      전: score={before.get('score')!r} basis={before.get('basis')!r}")
         print(f"      후: risk_probability={after['risk_probability']!r} "
               f"ai_risk_level={after['ai_risk_level']!r}")
+        print(f"      센서: 전체 {len(sensors)}개 중 범위 안 판정 {len(judged)}개, "
+              f"임계 초과 {over}개 -> {over}/{len(judged)}")
 
         if write:
             path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n",

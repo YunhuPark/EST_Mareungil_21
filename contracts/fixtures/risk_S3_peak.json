@@ -30,7 +30,9 @@
         "lon": 126.985386,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0002",
@@ -56,7 +58,9 @@
         "lon": 127.023934,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": true,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0003",
@@ -82,7 +86,9 @@
         "lon": 127.008277,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0004",
@@ -108,7 +114,9 @@
         "lon": 126.982366,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0005",
@@ -134,7 +142,9 @@
         "lon": 126.992029,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0006",
@@ -160,7 +170,9 @@
         "lon": 127.019834,
         "quality": "ROAD_MATCH"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": true,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0007",
@@ -186,7 +198,9 @@
         "lon": 127.042126,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0008",
@@ -212,7 +226,9 @@
         "lon": 126.986094,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0009",
@@ -238,7 +254,9 @@
         "lon": 127.01995,
         "quality": "ROAD_NAME_ONLY_APPROX"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": true,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0010",
@@ -264,7 +282,9 @@
         "lon": 127.026821,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": true,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0011",
@@ -290,7 +310,9 @@
         "lon": 127.027866,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": true,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0012",
@@ -316,7 +338,9 @@
         "lon": 127.029252,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0013",
@@ -342,7 +366,9 @@
         "lon": 127.01433,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "22-0014",
@@ -368,7 +394,9 @@
         "lon": 126.997733,
         "quality": "ROAD_MATCH"
       },
-      "observed_sample_count": 5
+      "observed_sample_count": 5,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0001",
@@ -394,7 +422,9 @@
         "lon": 127.028861,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": false
     },
     {
       "id": "23-0002",
@@ -420,7 +450,9 @@
         "lon": 127.022827,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0004",
@@ -446,7 +478,9 @@
         "lon": 127.063416,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0005",
@@ -472,7 +506,9 @@
         "lon": 127.054686,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0007",
@@ -498,7 +534,9 @@
         "lon": null,
         "quality": "UNMATCHED"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0008",
@@ -524,7 +562,9 @@
         "lon": 127.028861,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0009",
@@ -550,7 +590,9 @@
         "lon": 127.024102,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0010",
@@ -576,7 +618,9 @@
         "lon": 127.024102,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0011",
@@ -602,7 +646,9 @@
         "lon": 127.058863,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0012",
@@ -628,7 +674,9 @@
         "lon": 127.058572,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0013",
@@ -654,7 +702,9 @@
         "lon": 127.045192,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0014",
@@ -680,7 +730,9 @@
         "lon": 127.072773,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0015",
@@ -706,7 +758,9 @@
         "lon": 127.080161,
         "quality": "ROAD_NAME_ONLY_APPROX"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0017",
@@ -732,7 +786,9 @@
         "lon": 127.078203,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0018",
@@ -758,7 +814,9 @@
         "lon": 127.086494,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0019",
@@ -784,7 +842,9 @@
         "lon": 127.075833,
         "quality": "LANDMARK_MATCH_MANUAL_REVIEW"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     },
     {
       "id": "23-0021",
@@ -810,7 +870,9 @@
         "lon": 127.09502,
         "quality": "EXACT_ADDRESS_CANDIDATE"
       },
-      "observed_sample_count": 10
+      "observed_sample_count": 10,
+      "in_area_scope": false,
+      "exceeds_sensor_threshold": true
     }
   ],
   "area_risk": {

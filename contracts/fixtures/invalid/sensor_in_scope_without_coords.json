@@ -1,0 +1,278 @@
+{
+  "_scenario": "DS-S1",
+  "_why_this_moment": "평온, 데이터 정상. 행동 우선순위 1~9 에 걸리는 조건이 없어 기본값 MOVE 로 떨어진다.",
+  "_risk_source": "contracts/fixtures/risk_S1_calm.json (RF-S1) — 실제 모델 출력",
+  "_stub": "decision·route 블록은 STUB 이다. 판단 엔진·경로 엔진 미구현 구간을 손으로 채운 값이며 모델이 만든 값이 아니다.",
+  "contract_version": "v1",
+  "source_kind": "FIXTURE",
+  "clock": {
+    "mode": "REPLAY",
+    "event_time": "2022-08-08T11:00:00+09:00",
+    "observed_at": "2022-08-08T11:00:00+09:00",
+    "forecast_issued_at": "2022-08-08T11:00:00+09:00",
+    "forecast_target_at": "2022-08-08T11:30:00+09:00",
+    "last_update_at": "2022-08-08T11:00:00+09:00",
+    "data_age_sec": 0,
+    "stale": false,
+    "expired": false,
+    "label": "2022-08-08 11:00 재생"
+  },
+  "location": {
+    "label": "강남역 일대",
+    "in_service_area": true,
+    "lat": 37.4979,
+    "lon": 127.0276
+  },
+  "risk": {
+    "_scenario": "S1_calm",
+    "_why_this_moment": "평상 — 무강우, 고수위 센서 0개",
+    "_note": "area_risk.ai_risk_level 은 LOW/HIGH 두 값뿐이며 TH-04(O-01) 규칙으로 여기서 매긴다. ②(의사결정)는 이 값을 그대로 받아 쓰고 확률에 임계를 다시 적용하지 않는다. 최종 서비스 등급(SAFE/CAUTION/DANGER/SEVERE)은 별개 축이며 ②가 정한다.",
+    "_source": "2022 서울시 공개데이터 리플레이. 이 사건은 학습에서 제외된 test 사건이다.",
+    "asof": "2022-08-08T11:00:00+09:00",
+    "primary_horizon": 30,
+    "sensors": [
+      {
+        "id": "22-0002",
+        "district": "서초구",
+        "horizons": {
+          "10": {
+            "high_level_p": 0.0024
+          },
+          "30": {
+            "high_level_p": 0.0227
+          },
+          "60": {
+            "high_level_p": 0.1076
+          }
+        },
+        "is_high_now": false,
+        "predicted_transition": "STABLE",
+        "predicted_level": 0.354,
+        "predicted_level_unit": "UNCONFIRMED",
+        "physical_fill_ratio": null,
+        "location": {
+          "lat": 37.498143,
+          "lon": 127.023934,
+          "quality": "EXACT_ADDRESS_CANDIDATE"
+        },
+        "observed_sample_count": 9,
+        "in_area_scope": true,
+        "exceeds_sensor_threshold": false
+      },
+      {
+        "id": "X-0001",
+        "district": "서초구",
+        "horizons": {
+          "10": {
+            "high_level_p": 0.0024
+          },
+          "30": {
+            "high_level_p": 0.0227
+          },
+          "60": {
+            "high_level_p": 0.1076
+          }
+        },
+        "is_high_now": false,
+        "predicted_transition": "STABLE",
+        "predicted_level": 0.354,
+        "predicted_level_unit": "UNCONFIRMED",
+        "physical_fill_ratio": null,
+        "location": {
+          "lat": null,
+          "lon": null,
+          "quality": "UNMATCHED"
+        },
+        "observed_sample_count": 9,
+        "in_area_scope": true,
+        "exceeds_sensor_threshold": false
+      }
+    ],
+    "area_risk": {
+      "district": "강남역 반경 1000m",
+      "score": 0.0,
+      "risk_probability": 0.0,
+      "ai_risk_level": "LOW",
+      "basis": "경로 범위(강남역 반경 1000m) 센서 5개 중 t+30분 고수위 확률>=0.33 인 비율 0/5. 지역 임계 0.5 이상이면 HIGH (지역 임계 TEAM_AGREED, 센서 임계 val_events@fpr_0.05). 좌표 미상 1개 제외. TH-04/O-01"
+    },
+    "drivers": [
+      {
+        "feature": "rain_past_60m_mm",
+        "value": 0.0,
+        "contribution": null
+      },
+      {
+        "feature": "rain_past_30m_mm",
+        "value": 0.0,
+        "contribution": null
+      },
+      {
+        "feature": "rain_past_10m_mm",
+        "value": 0.0,
+        "contribution": null
+      },
+      {
+        "feature": "level_delta_30m",
+        "value": 0.0,
+        "contribution": null
+      },
+      {
+        "feature": "level_last",
+        "value": 0.02,
+        "contribution": null
+      }
+    ],
+    "model": {
+      "name": "histgb",
+      "version": "v2",
+      "threshold": 0.33,
+      "threshold_basis": "val_events@fpr_0.05",
+      "threshold_version": "sensor-0.33+area-0.5"
+    },
+    "data_quality": {
+      "sensors_active": 32,
+      "observed_rate": 0.956,
+      "rain_available": true
+    }
+  },
+  "decision": {
+    "_stub": "우선순위 10(그 외) 기본값. services/decision 구현 전 손으로 적은 값이다.",
+    "primary_action": "MOVE",
+    "action": "MOVE",
+    "route_postprocess_applied": false,
+    "service_risk_level": "SAFE",
+    "needs_route": true,
+    "next_check_at": "2022-08-08T11:30:00+09:00",
+    "reason_code": "NO_TRIGGER",
+    "user_state": {
+      "context": "OUTDOOR",
+      "trapped": false,
+      "hazard_signs": [],
+      "profiles": [],
+      "destination": {
+        "id": "GN-003",
+        "label": "역삼역",
+        "lat": 37.5006,
+        "lon": 127.0365
+      }
+    },
+    "reasons": [
+      {
+        "code": "AI_AREA_LOW",
+        "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 0.0).",
+        "value": 0.0,
+        "threshold": 0.5,
+        "basis": "AI_PREDICTION"
+      },
+      {
+        "code": "RAIN_BELOW_THRESHOLD",
+        "text": "10분 강우와 60분 누적 강우가 모두 팀 기준값 아래입니다.",
+        "value": 0.0,
+        "threshold": "10분 5mm 또는 60분 40mm",
+        "basis": "TEAM_RULE"
+      },
+      {
+        "code": "NO_OFFICIAL_ORDER",
+        "text": "이 시각 기준 공식 대피 지시가 없습니다.",
+        "value": null,
+        "threshold": null,
+        "basis": "OFFICIAL_GUIDANCE"
+      }
+    ],
+    "policy_version": "policy-0.1.0-draft"
+  },
+  "route": {
+    "_stub": "services/route 미구현. 후보 비교 결과가 아니라 형식을 보여주는 자리표시자다.",
+    "status": "FALLBACK_CANDIDATE",
+    "route_verified": false,
+    "route_target": "USER_DESTINATION",
+    "target": {
+      "kind": "DESTINATION_POINT",
+      "id": "GN-003",
+      "label": "역삼역",
+      "lat": 37.5006,
+      "lon": 127.0365,
+      "reason": "사용자가 고른 목적지",
+      "data_asof": "2022-08-08T11:00:00+09:00"
+    },
+    "route_attempted": true,
+    "no_safe_route": false,
+    "distance_m": 840,
+    "eta_sec": 720,
+    "detour_ratio": 1.0,
+    "candidates": [
+      {
+        "route_id": "OFR-07",
+        "label": "테헤란로 북측 보도",
+        "rank": 1,
+        "relative_risk": 0.08,
+        "distance_m": 840,
+        "excluded": false,
+        "excluded_by": null
+      },
+      {
+        "route_id": "OFR-12",
+        "label": "역삼로 방면",
+        "rank": 2,
+        "relative_risk": 0.14,
+        "distance_m": 910,
+        "excluded": false,
+        "excluded_by": null
+      }
+    ],
+    "hazards": [],
+    "profile_applied": [],
+    "limit": "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보",
+    "source": "fixture:official_routes_30"
+  },
+  "official": {
+    "source": "서울특별시 물순환안전국 공식 보고서 · 연합뉴스 · TBS · 서울시 미디어재단 · 강남구청 (원문 대조표: sources/2022-08-08_gangnam_verified_events.csv)",
+    "source_url": "https://mas.smc.seoul.kr/record/appendixDownload.do?key=0e4ffd51e00b3613782e78b385145bd61bd7ce551fdcf6469d7aea8106e159a895151257e1ff0461",
+    "asof": "2022-08-08T11:00:00+09:00",
+    "verification": "VERIFIED_SOURCE",
+    "evacuation_order": false,
+    "alerts": [
+      {
+        "type": "호우주의보",
+        "issued_at": "2022-08-08T08:00:00+09:00",
+        "cleared_at": "2022-08-08T12:50:00+09:00",
+        "available_time": "2022-08-08T08:00:00+09:00",
+        "region": "서울특별시 (강남구 포함)",
+        "source": "서울특별시 물순환안전국 호우피해 현황 및 복구관련 긴급 현황 보고 (CSV WX-001). 종료시각은 해제가 아니라 호우경보 격상 시각이다."
+      }
+    ],
+    "closures": [],
+    "confirmed_flooding": [],
+    "_source_file": "contracts/fixtures/official/official_0808.json",
+    "_visibility": {
+      "_note": "M-36. 재생 시각에 available_time 이 지나지 않은 항목과 공개시각을 확인하지 못한(null) 항목을 뺀 결과다. 아래 수는 '이 시각에는 아직 알 수 없었다'를 말하기 위한 것이며 계약 필드가 아니다.",
+      "replay_time": "2022-08-08T11:00:00+09:00",
+      "hidden": {
+        "alerts": 3,
+        "closures": 5,
+        "confirmed_flooding": 6
+      },
+      "undated": {
+        "alerts": 0,
+        "closures": 1,
+        "confirmed_flooding": 1
+      }
+    }
+  },
+  "notice": {
+    "disclaimer": "교육·시연용입니다. 공식 재난안전 판단 도구가 아닙니다.",
+    "route_limit": "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보",
+    "emergency_note": "누르면 전화 앱이 열립니다. 서비스가 대신 신고하거나 위치를 보내지 않습니다."
+  },
+  "versions": {
+    "model": "histgb-v2",
+    "policy": "policy-0.1.0-draft",
+    "data": "processed/v2",
+    "contract": "v1"
+  },
+  "_expect_invalid": {
+    "schema": "assess_response",
+    "rule": "risk_assessment@v1 sensors[].allOf — in_area_scope",
+    "why": "좌표가 없는 센서가 in_area_scope=true 로 범위 안이라고 주장한다"
+  }
+}

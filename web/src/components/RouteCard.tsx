@@ -1,5 +1,5 @@
 /**
- * 경로 카드.
+ * 경로 카드 — 시안 경로안내 화면의 요약 카드.
  *
  * RT-02. `route_verified=false` 와 제한 문구를 **항상** 노출한다.
  * RT-03. 금지된 경로 표현을 쓰지 않는다 — 목록은 CLAUDE.md 5절과
@@ -13,6 +13,9 @@
  * M-15. `EVACUATE` 인데 갈 곳·길·근거가 없으면 실패 사유를 그대로 적고 119 를
  *       강조한다. 행동은 여전히 `EVACUATE` 다 — 카드가 그것을 뒤집지 않는다.
  * M-23. 대피시설은 '안전 보장'이 아니라 '개방·안전 확인 필요'로 적는다.
+ *
+ * 시안의 큰 숫자(`12분 · 850m`)는 `eta_sec` · `distance_m` 에서 온다. **없으면
+ * 그리지 않는다** — 자리를 채우려고 0 이나 평균을 넣지 않는다.
  */
 
 import {
@@ -22,6 +25,7 @@ import {
   ROUTE_STATUS_LABEL,
   SHELTER_NOTE,
 } from '../contracts/enums';
+import { InfoIcon } from './icons';
 import type { SafeRoute } from '../contracts/types';
 
 const FAILED: SafeRoute['status'][] = [
@@ -31,7 +35,12 @@ const FAILED: SafeRoute['status'][] = [
   'DATA_UNAVAILABLE',
 ];
 
-function heading(route: SafeRoute): string {
+export function routeFailed(route: SafeRoute): boolean {
+  return FAILED.includes(route.status);
+}
+
+/** 카드 제목. 도달 대상이 목적지인지 대피시설인지를 먼저 말한다(UI-11). */
+export function routeHeading(route: SafeRoute): string {
   if (route.route_target === 'SAFE_POINT') return '대피시설 후보까지 · 추천 후보 경로';
   if (route.route_target === 'USER_DESTINATION') return '목적지까지 · 추천 후보 경로';
   return '경로';
@@ -40,15 +49,46 @@ function heading(route: SafeRoute): string {
 export function RouteCard({ route }: { route: SafeRoute }) {
   if (route.status === 'NOT_REQUIRED') return null;
 
-  const failed = FAILED.includes(route.status);
+  const failed = routeFailed(route);
   const advice = ROUTE_ADVICE[route.status];
   // M-32. 실패했을 때도 "왜 후보가 없어졌는지"는 보여준다. 사유가 사라지면
   // 화면이 "그냥 없다"고만 말하게 된다.
   const excluded = (route.candidates ?? []).filter((c) => c.excluded && c.excluded_by);
 
+  const etaMin = route.eta_sec == null ? null : Math.round(route.eta_sec / 60);
+  const distance = route.distance_m == null ? null : Math.round(route.distance_m);
+  const showFigure = !failed && (etaMin != null || distance != null);
+
   return (
     <section className={`card route ${failed ? 'route--failed' : ''}`} aria-label="추천 후보 경로">
-      <h2 className="card__title">{heading(route)}</h2>
+      {/* 왜 이 후보로 넘어왔는지. 앞 순위가 빠졌을 때만 뜬다. */}
+      {!failed && excluded.length > 0 && (
+        <p className="route__flag">
+          <InfoIcon size={16} />
+          {excluded.length}개 후보 제외 ·{' '}
+          {EXCLUDED_BY_LABEL[excluded[0]?.excluded_by ?? ''] ?? excluded[0]?.excluded_by}
+        </p>
+      )}
+
+      {/*
+        큰 숫자 자리는 소요 시간이 우선이고, 그 값이 없으면 거리가 대신 선다.
+        둘 다 없으면 이 줄 자체를 그리지 않는다 — 자리를 채우려고 0 을 넣지 않는다.
+      */}
+      {showFigure && (
+        <p className="route__figure">
+          {etaMin != null ? (
+            <>
+              <b>{etaMin}</b>분{distance != null && <span>· {distance}m</span>}
+            </>
+          ) : (
+            <>
+              <b>{distance}</b>m
+            </>
+          )}
+        </p>
+      )}
+
+      {showFigure && <hr className="route__rule" />}
 
       <p className={failed ? 'route__status route__status--failed' : 'route__status'}>
         {ROUTE_STATUS_LABEL[route.status]}
@@ -69,7 +109,6 @@ export function RouteCard({ route }: { route: SafeRoute }) {
       {route.target && !failed && (
         <p className="route__target">
           <b>{route.target.label}</b> 방면 후보입니다.
-          {route.distance_m != null && ` 약 ${Math.round(route.distance_m)}m`}
           {/* M-23. 시설은 개방·출입구·지상 안전층이 확인되지 않았다. */}
           {route.target.kind === 'SHELTER' && (
             <span className="route__shelter-note"> · {SHELTER_NOTE}</span>

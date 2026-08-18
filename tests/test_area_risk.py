@@ -204,3 +204,137 @@ def test_compute는_억제를_적용하지_않는다():
     assert area_risk.compute(calm["sensors"])["ai_risk_level"] == "LOW"
     assert "ai_risk_level" in area_risk.compute(calm["sensors"])
     assert not hasattr(area_risk.compute(calm["sensors"]), "pending_exit")
+
+
+# --- 센서별 판정 (annotate) --------------------------------------------------
+#
+# 지도가 임계를 다시 적용하지 않으려면(CLAUDE.md 10절) 비율을 만든 그 판정이
+# 응답에 실려야 한다. 그러면 화면의 점 개수와 `basis` 의 "n/m" 이 같은 값에서
+# 나온다. 아래 검사가 그 "같은 값"을 강제한다.
+
+#: 센서를 실제로 싣는 픽스처. (파일, RiskAssessment 본문까지의 경로)
+SENSOR_BODIES = [(p, []) for p in RISK_FILES] + [
+    (p, ["risk"]) for p in sorted((FIXTURES / "demo").glob("*.json"))
+]
+
+
+def dig(payload: dict, path: list[str]) -> dict:
+    for key in path:
+        payload = payload[key]
+    return payload
+
+
+@pytest.mark.parametrize("path,inner", SENSOR_BODIES, ids=lambda v: getattr(v, "name", ""))
+def test_센서_판정이_area_risk_비율과_일치한다(path: Path, inner: list[str]):
+    """**이것이 이 기능의 핵심 불변식이다.**
+
+    지도는 `in_area_scope` 로 점을 고르고 `exceeds_sensor_threshold` 로 표현을
+    가른다. 그 두 값으로 센 수가 `area_risk` 의 분모·분자와 다르면, 화면이
+    등급과 다른 말을 하게 된다 — 앞선 시도가 되돌려진 이유가 그것이다.
+
+    두 조건을 **함께** 보는 이유는 범위 안이면서 확률이 없는 센서가 가능하고,
+    그 센서는 분모에 들어가지 않기 때문이다.
+    """
+    body = dig(load(path), inner)
+    sensors, area = body["sensors"], body["area_risk"]
+
+    judged = [
+        s for s in sensors
+        if s["in_area_scope"] and s["exceeds_sensor_threshold"] is not None
+    ]
+    over = sum(1 for s in judged if s["exceeds_sensor_threshold"])
+
+    if not judged:
+        assert area["risk_probability"] is None, (
+            f"{path.name}: 판정된 센서가 없는데 비율이 있다"
+        )
+        return
+
+    assert area["risk_probability"] == round(over / len(judged), 4), (
+        f"{path.name}: 센서 판정 {over}/{len(judged)} 이 비율과 다르다"
+    )
+    assert f"비율 {over}/{len(judged)}." in area["basis"], (
+        f"{path.name}: basis 의 n/m 이 센서 판정과 다르다 — {area['basis']}"
+    )
+
+
+@pytest.mark.parametrize("path,inner", SENSOR_BODIES, ids=lambda v: getattr(v, "name", ""))
+def test_픽스처의_모든_센서가_판정을_싣는다(path: Path, inner: list[str]):
+    """생성기를 `annotate()` 없이 돌리면 여기서 잡힌다."""
+    for sensor in dig(load(path), inner)["sensors"]:
+        assert "in_area_scope" in sensor, f"{path.name} {sensor['id']}"
+        assert "exceeds_sensor_threshold" in sensor, f"{path.name} {sensor['id']}"
+
+
+def test_좌표가_없으면_범위_안이라고_말하지_않는다():
+    """`23-0007` 처럼 UNMATCHED 인 센서는 확률이 높아도 지도에 올라오지 않는다.
+
+    좌표를 모르는 센서를 범위 안이라고 표시하면 화면이 그 점을 어딘가에 찍어야
+    하고, 그 위치는 무엇의 근거도 아니다.
+    """
+    scope = area_risk.load_scope()
+    unknown = {
+        "id": "U",
+        "horizons": {"30": {"high_level_p": 0.9991}},
+        "location": {"lat": None, "lon": None, "quality": "UNMATCHED"},
+    }
+
+    out = area_risk.annotate([unknown], scope)[0]
+    assert out["in_area_scope"] is False
+    # 확률 자체는 임계를 넘는다. 그래도 범위 안이 아니다 — 두 판정은 다른 축이다.
+    assert out["exceeds_sensor_threshold"] is True
+
+
+def test_확률이_없으면_판정이_None이다():
+    """"임계 미만"과 "판단할 값이 없다"를 같은 값으로 표현하지 않는다."""
+    scope = area_risk.load_scope()
+    blank = {
+        "id": "B",
+        "horizons": {"30": {}},
+        "location": {"lat": 37.4980, "lon": 127.0277, "quality": "T"},
+    }
+
+    out = area_risk.annotate([blank], scope)[0]
+    assert out["exceeds_sensor_threshold"] is None, "False 로 채우면 안 된다"
+    assert out["in_area_scope"] is True, "확률이 없는 것과 범위는 다른 축이다"
+
+    # 그리고 이 센서는 분모에 들어가지 않는다 — 지도도 같은 규칙으로 세야 한다.
+    assert area_risk.compute([blank], scope)["risk_probability"] is None
+
+
+def test_판정에_쓰는_임계는_compute와_같다():
+    """지도가 다른 임계를 쓰면 점 개수와 등급이 어긋난다."""
+    scope = area_risk.load_scope()
+    at = {
+        "id": "AT",
+        "horizons": {"30": {"high_level_p": area_risk.SENSOR_THRESHOLD}},
+        "location": {"lat": 37.4980, "lon": 127.0277, "quality": "T"},
+    }
+    just_under = {
+        "id": "UNDER",
+        "horizons": {"30": {"high_level_p": area_risk.SENSOR_THRESHOLD - 0.0001}},
+        "location": {"lat": 37.4980, "lon": 127.0277, "quality": "T"},
+    }
+
+    marked = area_risk.annotate([at, just_under], scope)
+    assert marked[0]["exceeds_sensor_threshold"] is True, "임계값 자체는 초과로 센다"
+    assert marked[1]["exceeds_sensor_threshold"] is False
+    # compute 도 같은 경계를 쓴다 — 2개 중 1개.
+    assert area_risk.compute([at, just_under], scope)["risk_probability"] == 0.5
+
+
+def test_annotate는_입력을_건드리지_않는다():
+    """N-04. 순수 함수이며 호출해도 원본 dict 가 바뀌지 않는다."""
+    scope = area_risk.load_scope()
+    sensor = {
+        "id": "S",
+        "horizons": {"30": {"high_level_p": 0.9}},
+        "location": {"lat": 37.4980, "lon": 127.0277, "quality": "T"},
+    }
+    before = json.dumps(sensor, sort_keys=True)
+
+    area_risk.annotate([sensor], scope)
+    assert json.dumps(sensor, sort_keys=True) == before, "입력이 오염됐다"
+
+    # 같은 입력이면 같은 출력이다.
+    assert area_risk.annotate([sensor], scope) == area_risk.annotate([sensor], scope)

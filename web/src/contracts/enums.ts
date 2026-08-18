@@ -57,6 +57,21 @@ export type RouteTarget = (typeof ROUTE_TARGETS)[number];
 export const BASES = ['OFFICIAL_GUIDANCE', 'AI_PREDICTION', 'TEAM_RULE'] as const;
 export type Basis = (typeof BASES)[number];
 
+/**
+ * 센서 좌표의 출처 품질. 정본은 `risk_assessment.schema.json` 한 곳이다.
+ * Python 쪽 사본은 없다 — `services/decision` 은 좌표를 쓰지 않는다.
+ *
+ * **공식 좌표는 0개다.** 전부 주소·지점 매칭 결과이며 등급마다 신뢰도가 다르다.
+ */
+export const SENSOR_LOCATION_QUALITIES = [
+  'EXACT_ADDRESS_CANDIDATE',
+  'ROAD_MATCH',
+  'LANDMARK_MATCH_MANUAL_REVIEW',
+  'ROAD_NAME_ONLY_APPROX',
+  'UNMATCHED',
+] as const;
+export type SensorLocationQuality = (typeof SENSOR_LOCATION_QUALITIES)[number];
+
 // --- 화면 표시 라벨 -------------------------------------------------------
 //
 // 계약 값과 화면 문구를 여기서 한 번만 잇는다. 컴포넌트가 각자 문자열을
@@ -207,3 +222,53 @@ export const SCENARIO_NOTE: Record<string, string> = {
   'DS-S7': '1순위 대피시설이 만석이라 다음 후보로 넘어간 상태',
   'DS-S8': '후보 대피시설이 모두 빠져 남은 곳이 없는 상태',
 };
+
+/**
+ * 센서 좌표 품질 문구. 지도 팝업에 그대로 찍는다.
+ *
+ * 좌표가 어디서 왔는지를 숨기지 않기 위한 것이다. 같은 붉은 점이라도 지번
+ * 주소에서 온 것과 도로명만 보고 찍은 것은 다른 값이고, 사용자가 그 차이를
+ * 볼 수 있어야 한다.
+ */
+export const SENSOR_QUALITY_LABEL: Record<SensorLocationQuality, string> = {
+  EXACT_ADDRESS_CANDIDATE: '지번 주소 후보',
+  ROAD_MATCH: '도로 매칭',
+  LANDMARK_MATCH_MANUAL_REVIEW: '주요지점 매칭 · 수동 확인',
+  ROAD_NAME_ONLY_APPROX: '도로명만 · 근사 위치',
+  UNMATCHED: '위치 미확인',
+};
+
+/**
+ * 점으로 찍어도 되는 좌표인가.
+ *
+ * 스키마가 `LANDMARK`·`ROAD_NAME`·`UNMATCHED` 를 "도로 차단 근거로 쓰지 않고
+ * 시각화까지만" 으로 구분하고 있고, 그 구분을 그대로 따른다. 근사 좌표를 정밀
+ * 좌표와 같은 크기의 점으로 그리면 **없는 정밀도를 주장하게 된다.**
+ */
+export const SENSOR_QUALITY_IS_PRECISE: Record<SensorLocationQuality, boolean> = {
+  EXACT_ADDRESS_CANDIDATE: true,
+  ROAD_MATCH: true,
+  LANDMARK_MATCH_MANUAL_REVIEW: false,
+  ROAD_NAME_ONLY_APPROX: false,
+  UNMATCHED: false,
+};
+
+/**
+ * F-11 지도 위험 레이어 문구.
+ *
+ * **'침수 구역'이라고 쓰지 않는다.** 그릴 수 있는 것은 하수관로 수위 센서의
+ * t+30분 고수위 확률이고, 관측된 침수가 아니다. 둘을 같은 말로 부르면 화면이
+ * 계약보다 많이 주장하게 된다 — 앞선 시도가 되돌려진 이유가 그것이다.
+ */
+export const SENSOR_LAYER_TITLE = 't+30분 고수위 예측 지점';
+
+/** 레이어를 켤 때 항상 함께 보이는 한계 문구. */
+export const SENSOR_LAYER_NOTE =
+  '하수관로 수위 센서의 t+30분 예측이며 관측된 침수가 아닙니다. ' +
+  '좌표는 공식 좌표가 아니라 주소·지점 매칭 결과입니다.';
+
+/** 범위 안에 판단할 센서가 없을 때. 조용히 비우지 않는다 — '안전'과 다른 상태다. */
+export const SENSOR_LAYER_EMPTY = '이 시각에는 범위 안에 판단할 센서 자료가 없습니다.';
+
+/** 판단 범위 원의 설명. 좌표·반경은 contracts/destinations.json 이 정본이다. */
+export const AREA_SCOPE_NOTE = '지역 위험을 판단하는 범위입니다.';

@@ -153,6 +153,50 @@ def compute(sensors: list[dict], scope: dict | None = None) -> dict:
     }
 
 
+def annotate(sensors: list[dict], scope: dict | None = None) -> list[dict]:
+    """각 센서에 범위·임계 판정을 찍어 **새 목록**을 낸다. 순수 함수다.
+
+    `compute()` 가 비율을 낼 때 이미 내리는 판정을 그대로 꺼내 놓을 뿐이며,
+    여기서 무엇도 새로 정하지 않는다 — `in_scope()` 와 `SENSOR_THRESHOLD` 를
+    그대로 쓴다. 화면이 임계를 다시 적용하지 않게 하려는 것이다(CLAUDE.md 10절).
+    지도에 찍히는 점의 개수와 `area_risk.basis` 의 "n/m" 은 **같은 판정**에서
+    나와야 하고, 그것이 이 함수가 존재하는 유일한 이유다.
+
+    두 필드의 뜻:
+
+    - `in_area_scope`: 경로 범위 안인가. **좌표가 없으면 False 다** —
+      `in_scope()` 와 같은 규칙이며, 위치를 모르는 센서는 지도에 찍을 자리가
+      없다(`23-0007` 이 이 경우다).
+    - `exceeds_sensor_threshold`: t+`HORIZON_MIN` 고수위 확률이 TH-03 이상인가.
+      확률이 없으면 `None` 이다. **False 로 채우지 않는다** — "임계 미만"과
+      "판단할 값이 없다"는 다른 상태이고, `compute()` 도 후자를 분모에서 뺀다.
+
+    그래서 다음이 성립한다. `tests/test_area_risk.py` 가 이걸 지킨다:
+
+        분모 = in_area_scope 이고 exceeds_sensor_threshold 가 None 이 아닌 센서 수
+        분자 = in_area_scope 이고 exceeds_sensor_threshold 가 True 인 센서 수
+
+    두 조건을 **함께** 봐야 하는 이유는 범위 안에 있으면서 확률이 없는 센서가
+    가능하기 때문이다. 그런 센서를 `in_area_scope` 만 보고 "안전"으로 그리면
+    없는 판단을 지어내게 된다 — 화면은 그것을 판단 불가로 구분해 표시한다.
+
+    입력 dict 를 건드리지 않고 사본을 낸다. 같은 입력이면 같은 출력이다(N-04).
+    """
+    scope = scope or load_scope()
+    key = str(HORIZON_MIN)
+
+    marked: list[dict] = []
+    for sensor in sensors:
+        prob = (sensor.get("horizons") or {}).get(key, {}).get("high_level_p")
+        copy = dict(sensor)
+        copy["in_area_scope"] = in_scope(sensor, scope)
+        copy["exceeds_sensor_threshold"] = (
+            None if prob is None else float(prob) >= SENSOR_THRESHOLD
+        )
+        marked.append(copy)
+    return marked
+
+
 @dataclass(frozen=True)
 class DwellState:
     """진동 억제의 상태. **이전 시각의 결과를 명시적으로 들고 다닌다.**

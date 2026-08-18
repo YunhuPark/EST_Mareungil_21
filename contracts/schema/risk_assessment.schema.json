@@ -22,7 +22,8 @@
         "type": "object",
         "required": [
           "id", "district", "horizons", "is_high_now",
-          "predicted_transition", "predicted_level_unit", "location"
+          "predicted_transition", "predicted_level_unit", "location",
+          "in_area_scope", "exceeds_sensor_threshold"
         ],
         "additionalProperties": false,
         "properties": {
@@ -81,8 +82,35 @@
           "observed_sample_count": {
             "type": ["integer", "null"],
             "description": "해당 10분 격자에서 실제 관측된 1분 샘플 수. ②의 데이터 노후·결손 판정에 쓴다."
+          },
+          "in_area_scope": {
+            "type": "boolean",
+            "description": "경로 범위(destinations.json scope) 안인가. 생산자는 mareungil/area_risk.py 의 in_scope() 로 정한다. **좌표가 없으면 false 다.** ③은 이 값으로 지도에 찍을 센서를 고르며 거리를 다시 계산하지 않는다."
+          },
+          "exceeds_sensor_threshold": {
+            "type": ["boolean", "null"],
+            "description": "t+30 고수위 확률이 TH-03(model.threshold) 이상인가. area_risk 비율의 분자를 정하는 그 판정이며, ③은 이 값으로 표현을 가르고 임계를 다시 적용하지 않는다(CLAUDE.md 10절). 확률이 없으면 null 이다 — '임계 미만'과 '판단할 값이 없다'는 다른 상태이므로 false 로 채우지 않는다."
           }
-        }
+        },
+        "allOf": [
+          {
+            "$comment": "좌표 없이 범위 안이라고 주장할 수 없다. in_scope() 가 좌표 없는 센서를 false 로 내므로 생산자는 이미 지키고 있고, 이 규칙은 그것이 깨졌을 때 계약이 먼저 막게 한다.",
+            "if": {
+              "required": ["in_area_scope"],
+              "properties": { "in_area_scope": { "const": true } }
+            },
+            "then": {
+              "properties": {
+                "location": {
+                  "properties": {
+                    "lat": { "type": "number" },
+                    "lon": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     },
 

@@ -8,6 +8,12 @@
  * 확인하는 것은 설계서 12장의 "항상 보여야 할 다섯 항목" + 고지다.
  *   위험 상태 · 현재 위치 · 현재 행동 · 재생 시각 · 119 · 면책 문구
  *
+ * 화면이 네 탭으로 나뉜 뒤로
+ * -------------------------
+ * 카드가 어느 탭에 있는지는 바뀌었지만 **무엇이 화면에 있어야 하는가는 그대로**다.
+ * 그래서 아래 검사들은 지우지 않고 해당 탭으로 옮겨 눌러본다. 그리고 위 다섯
+ * 항목은 탭과 무관하게 남아야 하므로, 네 탭 전부에서 남는지 따로 본다.
+ *
  * jsdom 에는 지도 타일이 없으므로 이 테스트는 **지도가 실패한 상황**과 같다.
  * 그런데도 위 항목이 전부 남아 있어야 한다(설계서 8.5.3).
  */
@@ -18,6 +24,7 @@ import { describe, expect, it } from 'vitest';
 import { App } from './App';
 import { ProfilePicker } from './components/ProfilePicker';
 import { ReassessBar } from './components/ReassessBar';
+import { CLOSURE_MODE_LABEL } from './contracts/enums';
 import fixture from '../../contracts/fixtures/demo/DS-S1.assess_response.json';
 import blockedDestination from '../../contracts/fixtures/demo/DS-S6.assess_response.json';
 import trapped from '../../contracts/fixtures/demo/DS-S4.assess_response.json';
@@ -31,7 +38,12 @@ const trappedFixture = trapped as unknown as AssessResponse;
 const s7 = shelterSwitch as unknown as AssessResponse;
 const s8 = noSafePoint as unknown as AssessResponse;
 
-describe('모바일 단일 화면', () => {
+/** 탭 전환. 탭을 바꿔도 다시 요청하지 않는다 — 같은 응답을 다른 각도로 본다. */
+function goTab(name: '경로안내' | '과거기록' | '맞춤안내' | '대피시설') {
+  fireEvent.click(screen.getByRole('tab', { name }));
+}
+
+describe('모바일 화면', () => {
   it('지도가 없어도 항상 보여야 할 다섯 항목이 남는다', () => {
     render(<App initialData={data} />);
 
@@ -48,14 +60,60 @@ describe('모바일 단일 화면', () => {
     expect(call.getAttribute('href')).toBe('tel:119');
   });
 
+  /**
+   * UI-02 / UI-04 / UI-07. 탭이 생기면서 새로 생긴 위험은 **탭을 옮기면 위험
+   * 표시가 사라지는 것**이다. 상단 상태 줄과 하단 고정 묶음이 그것을 막는데,
+   * 막고 있는지는 눌러보지 않으면 알 수 없다.
+   */
+  it.each(['경로안내', '과거기록', '맞춤안내', '대피시설'] as const)(
+    '%s 탭에서도 위험 등급·현재 위치·재생 시각·119·면책 문구가 남는다',
+    (tab) => {
+      render(<App initialData={data} />);
+      goTab(tab);
+
+      expect(screen.getByText('위험 등급')).toBeDefined();
+      expect(screen.getByText(data.location.label)).toBeDefined();
+      expect(screen.getByText(data.clock.label)).toBeDefined();
+      expect(screen.getByRole('link', { name: /119/ }).getAttribute('href')).toBe('tel:119');
+      expect(screen.getByText(data.notice.disclaimer)).toBeDefined();
+    },
+  );
+
   it('면책 문구가 항상 보인다 (UI-07)', () => {
     render(<App initialData={data} />);
     expect(screen.getByText(data.notice.disclaimer)).toBeDefined();
   });
 
+  it('정보 버튼은 사용자용 데이터 출처와 한계만 보여준다', () => {
+    render(<App initialData={data} />);
+
+    const info = screen.getByRole('button', { name: '데이터 출처와 한계' });
+    expect(info.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('heading', { name: '데이터 출처와 한계' })).toBeNull();
+
+    fireEvent.click(info);
+
+    expect(info.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('heading', { name: '데이터 출처와 한계' })).toBeDefined();
+    expect(screen.getByText(/시연용 고정 데이터/)).toBeDefined();
+    expect(screen.getByText('공식정보 출처 보기')).toBeDefined();
+
+    // 계약·정책·모델 판은 API와 개발 문서에 남기고 일반 사용자 화면에서는 뺀다.
+    expect(screen.queryByText(data.decision.policy_version)).toBeNull();
+    expect(screen.queryByText(`${data.risk.model.name} ${data.risk.model.version}`)).toBeNull();
+    expect(screen.queryByText(/설정 화면은 이 MVP/)).toBeNull();
+  });
+
   it('경로 제한 문구가 항상 보인다 (RT-02)', () => {
     render(<App initialData={data} />);
+
+    // 경로를 말하는 두 탭 어디에서도 제한 문구가 빠지지 않는다.
+    goTab('경로안내');
     expect(screen.getByText(data.route.limit)).toBeDefined();
+
+    goTab('대피시설');
+    expect(screen.getByText(data.route.limit)).toBeDefined();
+
     expect(data.route.route_verified).toBe(false);
   });
 
@@ -121,6 +179,8 @@ describe('모바일 단일 화면', () => {
 
   it('목적지 선택은 지정 지점 목록 방식이다 (UI-10)', () => {
     render(<App initialData={data} />);
+    goTab('경로안내');
+
     const select = screen.getByLabelText('가려던 목적지');
     expect(select.tagName).toBe('SELECT');
     // 자유 텍스트 입력을 제공하지 않는다.
@@ -134,7 +194,6 @@ describe('모바일 단일 화면', () => {
     }
     expect(screen.getByText(/경과 \d+분/)).toBeDefined();
   });
-
 });
 
 describe('수동 재판단 (M-18)', () => {
@@ -162,6 +221,20 @@ describe('수동 재판단 (M-18)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '2022-08-08 21:40 재생' }));
     expect(picked).toEqual(['DS-S7']);
+  });
+
+  /**
+   * 칩에 보이는 글자는 `21:40` 이지만 **버튼의 이름은 서버가 준 재생 시각
+   * 문자열 통째로**여야 한다(F-12). 이름에서 날짜가 빠지면 어느 날을 재생하는지
+   * 화면이 말하지 못하고, 그걸 눈으로 잡을 방법이 없다.
+   */
+  it('칩은 시각만 보여주되 이름은 서버의 clock_label 그대로다 (F-12)', () => {
+    render(<ReassessBar list={list} current="DS-S1" onReassess={() => {}} />);
+
+    const button = screen.getByRole('button', { name: '2022-08-08 21:40 재생' });
+    expect(button.textContent).toBe('21:40');
+    // 날짜는 카드 머리에서 한 번 말한다.
+    expect(screen.getByText('2022-08-08')).toBeDefined();
   });
 
   /**
@@ -227,12 +300,16 @@ describe('경로가 실패했을 때 (M-15 · M-16 · M-32)', () => {
 
   it('후보가 왜 빠졌는지 사유를 남긴다', () => {
     render(<App initialData={s8} />);
+    goTab('경로안내');
+
     expect(screen.getByText(/대피시설 만석 확인/)).toBeDefined();
     expect(screen.getByText(/대피시설 폐쇄 확인/)).toBeDefined();
   });
 
   it('대피시설은 안전을 보장하지 않는다고 적는다 (M-23)', () => {
     render(<App initialData={s7} />);
+    goTab('경로안내');
+
     expect(screen.getByText(/개방·안전 확인 필요/)).toBeDefined();
   });
 
@@ -242,6 +319,7 @@ describe('경로가 실패했을 때 (M-15 · M-16 · M-32)', () => {
       route: { ...data.route, status: 'DESTINATION_BLOCKED' as const, target: null },
     };
     const { unmount } = render(<App initialData={blocked} />);
+    goTab('경로안내');
     expect(screen.getByText(/다른 목적지를 선택해 주세요/)).toBeDefined();
     expect(screen.queryByText(/안전이 확인되지 않은 경로로 이동하지 마세요/)).toBeNull();
     unmount();
@@ -252,6 +330,7 @@ describe('경로가 실패했을 때 (M-15 · M-16 · M-32)', () => {
       route: { ...data.route, status: 'NO_SAFE_ROUTE' as const, no_safe_route: true },
     };
     render(<App initialData={noRoute} />);
+    goTab('경로안내');
     expect(screen.getByText(/안전이 확인되지 않은 경로로 이동하지 마세요/)).toBeDefined();
     expect(screen.queryByText(/다른 목적지를 선택해 주세요/)).toBeNull();
   });
@@ -261,25 +340,40 @@ describe('공식정보 (O-11 · M-24 · M-36)', () => {
   it('그 시각에 공개돼 있던 경보를 화면에서 볼 수 있다', () => {
     // DS-S7 은 21:40 재생이다. 호우경보(12:50 발효)는 이미 공개돼 있었다.
     render(<App initialData={s7} />);
+    goTab('과거기록');
+
     expect(screen.getByRole('heading', { name: '공식정보' })).toBeDefined();
     expect(screen.getByText('호우경보')).toBeDefined();
   });
 
+  /**
+   * 그날 강남 도로 통제 보도는 전부 22:01 이후 송고다. 21:40 화면은 몰라야 한다.
+   *
+   * 타임라인이 종류별 묶음이 아니라 시각 순 한 줄이 되면서, "통제 제목이
+   * 없다"로는 아무것도 증명되지 않게 됐다 — 제목 자체가 사라졌기 때문이다.
+   * 그래서 **통제 항목이 렌더링될 때만 나오는 문구**가 없는지 본다.
+   */
   it('그 시각에 공개돼 있지 않던 통제를 화면에 올리지 않는다', () => {
-    // 그날 강남 도로 통제 보도는 전부 22:01 이후 송고다. 21:40 화면은 몰라야 한다.
     expect(s7.official?.closures).toEqual([]);
+
     render(<App initialData={s7} />);
-    expect(screen.queryByRole('heading', { name: '통제' })).toBeNull();
+    goTab('과거기록');
+
+    for (const label of Object.values(CLOSURE_MODE_LABEL)) {
+      expect(screen.queryByText(label)).toBeNull();
+    }
   });
 
   it('원출처를 확인한 값과 시연용으로 만든 값을 구분해 표시한다', () => {
     const { unmount } = render(<App initialData={s7} />);
+    goTab('과거기록');
     expect(screen.getByText('원출처 확인됨')).toBeDefined();
     unmount();
 
     // DS-S6 의 통제는 실제 기록이 아니라 시연용 합성값이다.
     expect(destinationBlocked.official?.verification).toBe('DEMO_FIXTURE');
     render(<App initialData={destinationBlocked} />);
+    goTab('과거기록');
     expect(screen.getByText(/시연용으로 만든 값/)).toBeDefined();
   });
 
@@ -287,7 +381,9 @@ describe('공식정보 (O-11 · M-24 · M-36)', () => {
     // 2022-08-08 자료 대부분이 '그날 밤'까지만 말하고 분 시각을 남기지 않았다.
     const flooding = s7.official?.confirmed_flooding ?? [];
     expect(flooding.some((f) => f.observed_at === null)).toBe(true);
+
     render(<App initialData={s7} />);
+    goTab('과거기록');
     expect(screen.getAllByText('관측 시각 확인되지 않음').length).toBeGreaterThan(0);
   });
 
@@ -308,6 +404,8 @@ describe('공식정보 (O-11 · M-24 · M-36)', () => {
       },
     };
     render(<App initialData={vehicleOnly} />);
+    goTab('과거기록');
+
     expect(screen.getByText(/차량 통제 \(보행 통제 여부는 확인되지 않음\)/)).toBeDefined();
   });
 });
@@ -315,17 +413,23 @@ describe('공식정보 (O-11 · M-24 · M-36)', () => {
 describe('프로필 (M-37)', () => {
   it('고령자·아이 동반을 고를 수 있다', () => {
     render(<App initialData={data} />);
+    goTab('경로안내');
+
     expect(screen.getByLabelText('고령자')).toBeDefined();
     expect(screen.getByLabelText('아이 동반')).toBeDefined();
   });
 
   it('검증값이 아니라 팀 합의값이라고 적는다', () => {
     render(<App initialData={data} />);
+    goTab('경로안내');
+
     expect(screen.getByText(/팀이 합의한 값이며 근거 데이터로 확인한 값이 아닙니다/)).toBeDefined();
   });
 
   it('안전 기준을 완화하지 않는다고 적는다', () => {
     render(<App initialData={data} />);
+    goTab('경로안내');
+
     expect(screen.getByText(/위험구간을 빼는 기준은 그대로/)).toBeDefined();
   });
 
