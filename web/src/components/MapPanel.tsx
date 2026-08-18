@@ -107,24 +107,33 @@ export function MapPanel({ data }: { data: AssessResponse }) {
           { weight: 4, dashArray: '8 6', opacity: 0.6, color: '#333' },
         ).addTo(map);
 
-        const R = 0.0028; // 약 310m (반지름 250m 원을 완벽히 피하기 위한 우회 사각형의 절반 크기)
-        
-        let wp1Lat, wp1Lon, wp2Lat, wp2Lon;
+        // [DEMO] "위험금지침수구역 피해서 우회하기"
+        // 출발지부터 목적지까지의 방향 벡터를 구한 뒤, 이에 수직인 벡터를 이용해
+        // 금지구역(반경 250m)을 완벽하게 덮는 직사각형 모양의 2개 경유지를 계산합니다.
+        const dLat = Number(target.lat) - Number(lat);
+        const dLon = Number(target.lon) - Number(lon);
+        const dist = Math.sqrt(dLat * dLat + dLon * dLon) || 1;
 
-        // 진행 방향에 따라 금지구역을 완벽히 회피할 2개의 코너 경유지 계산
-        if (Math.abs(b) > Math.abs(a)) {
-            const signB = Math.sign(b) || 1;
-            wp1Lat = midLat + R * Ay - signB * R * By;
-            wp1Lon = midLon + R * Ax - signB * R * Bx;
-            wp2Lat = midLat + R * Ay + signB * R * By;
-            wp2Lon = midLon + R * Ax + signB * R * Bx;
-        } else {
-            const signA = Math.sign(a) || 1;
-            wp1Lat = midLat + R * By - signA * R * Ay;
-            wp1Lon = midLon + R * Bx - signA * R * Ax;
-            wp2Lat = midLat + R * By + signA * R * Ay;
-            wp2Lon = midLon + R * Bx + signA * R * Ax;
-        }
+        // 정규화된 방향 벡터 (진행 방향)
+        const uLat = dLat / dist;
+        const uLon = dLon / dist;
+
+        // 진행 방향에 수직인 벡터 (우측으로 90도 회전)
+        const pLat = -uLon;
+        const pLon = uLat;
+
+        // 우회 거리 (측면으로 350m = 약 0.0031도)
+        const detourDist = 0.0031;
+        // 전진 거리 (원 중심에서 앞뒤로 300m = 약 0.0027도)
+        const forwardDist = 0.0027;
+
+        // 1. 원에 도달하기 전(진행 방향 반대) 측면으로 빠지는 경유지
+        const wp1Lat = midLat - uLat * forwardDist + pLat * detourDist;
+        const wp1Lon = midLon - uLon * forwardDist + pLon * detourDist;
+
+        // 2. 원을 지나서(진행 방향) 측면에 있는 경유지
+        const wp2Lat = midLat + uLat * forwardDist + pLat * detourDist;
+        const wp2Lon = midLon + uLon * forwardDist + pLon * detourDist;
 
         // OSRM API 호출 (도보 기준: 골목길, 흰색 길을 모두 따라가며 금지구역 외곽을 완벽히 돎)
         const osrmUrl = `https://router.project-osrm.org/route/v1/walking/${lon},${lat};${wp1Lon},${wp1Lat};${wp2Lon},${wp2Lat};${target.lon},${target.lat}?overview=full&geometries=geojson`;
