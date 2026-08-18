@@ -22,9 +22,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from services.decision.enums import Action, Basis, RouteStatus, STATUS_ALLOWED_FOR
+from services.decision.service_risk import MAX_REASONS, Reason
 
 #: 확정된 전이. (1차 행동, 경로 상태) -> 최종 행동.
 #: **행동이 바뀌는 유일한 규칙**이며 여기 늘어나면 C-01 이 깨진다.
@@ -149,3 +151,44 @@ def apply(primary_action: Action, route_status: RouteStatus) -> PostprocessResul
         )
 
     return PostprocessResult(action=primary_action, applied=False)
+
+
+def representative_code(primary_reasons: Sequence[Reason], post: PostprocessResult) -> str:
+    """화면 상단·전환 배너에 찍히는 대표 사유 코드.
+
+    경로 실패가 있으면 그것이 대표다 — 사용자가 지금 마주친 것이 그것이기 때문이다.
+    실패가 없으면 행동을 만든 규칙의 사유가 대표다.
+
+    **`api/main.py` 와 테스트가 같은 함수를 통과한다**(C-21). 예전에는 이 규칙이
+    두 곳에 각각 적혀 있었고, 한쪽만 고치면 "픽스처와 맞다"가 조용히 거짓이 된다.
+    """
+    if post.reason is not None:
+        return post.reason[0]
+    return primary_reasons[0].code
+
+
+def final_reasons(
+    primary_reasons: Sequence[Reason], post: PostprocessResult
+) -> tuple[Reason, ...]:
+    """화면의 "판단 이유" 목록에 실릴 최종 사유들.
+
+    `decide()` 의 사유 뒤에 **경로 실패 사유를 붙인다.** 붙이지 않으면 화면이
+    자기 모순을 말한다 - `DS-S6` 에서 경로 카드는 "목적지 차단"을 띄우는데
+    이유 목록은 "행동을 바꿀 조건이 확인되지 않았습니다"만 보여줬다. 대표 사유
+    (`reason_code`)는 계약 필드일 뿐 화면에 렌더되지 않으므로(`ReasonList` 는
+    `reasons` 만 읽는다) 실패 사유가 목록에 없으면 사용자에게 도달하지 않는다.
+
+    순서는 픽스처 규약을 따른다 - 위험 사유가 먼저고 경로 실패가 뒤다
+    (`DS-S6` 은 `[AI_AREA_LOW, ROUTE_DESTINATION_BLOCKED]`,
+    `DS-S8` 은 `[AI_AREA_HIGH, ROUTE_NO_SAFE_POINT]`).
+
+    상한은 `MAX_REASONS`(계약 `maxItems: 3`)다. **잘릴 때 살아남는 쪽은 경로
+    실패 사유다** - 뒤에서 자르면 방금 붙인 사유가 먼저 사라져 모순이 되돌아온다.
+    """
+    if post.reason is None:
+        return tuple(primary_reasons[:MAX_REASONS])
+
+    code, text, basis = post.reason
+    # 같은 코드를 decide() 가 이미 냈으면 두 번 싣지 않는다.
+    kept = [r for r in primary_reasons if r.code != code][: MAX_REASONS - 1]
+    return tuple([*kept, Reason(code, text, basis)])

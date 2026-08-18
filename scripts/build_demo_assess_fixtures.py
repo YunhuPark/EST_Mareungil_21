@@ -671,6 +671,131 @@ def build_ds_s6() -> dict:
     }
 
 
+# --- P1-1. 고립 신고 -> EMERGENCY ------------------------------------------
+#
+# 행동 우선순위 1 이다. **다른 어떤 신호보다 먼저 이긴다** — AI 가 LOW 여도, 자료가
+# 30분을 넘겨도, 경로가 어떻든 EMERGENCY 다. 계약도 같은 것을 강제한다
+# (`assess_response` allOf: trapped=true -> primary_action=action=EMERGENCY).
+#
+# 경로 엔진을 타지 않는 유일한 LIVE 시나리오다. `EMERGENCY` 는 `not_required()`
+# 로 끝나므로 센서도 안전거점도 필요 없다 - 그래서 가장 싸게 붙는다.
+
+
+def build_ds_s4() -> dict:
+    """DS-S4 — 지하 고립 신고 -> EMERGENCY + NOT_REQUIRED.
+
+    risk 블록은 RF-S3(피크, 실제 모델 출력)다. 고립은 피크 국면에서 벌어진다.
+    **risk 는 EMERGENCY 를 만든 근거가 아니다** - 우선순위 1 은 자기신고 하나로
+    결정되며 AI 값과 독립이다(F-14). 피크를 고른 것은 서사일 뿐이다.
+
+    `_stub` 을 달지 않는다. 앞선 네 픽스처의 `_stub` 은 "엔진 구현 전에 손으로
+    적었다"는 뜻인데, 이 파일은 두 엔진이 **이미 있는 상태에서** 그 출력에 맞춰
+    쓴 것이라 같은 말을 붙이면 거짓이 된다.
+    """
+    risk = load(FIXTURES / "risk_S3_peak.json")
+    apply_area_risk(risk)
+
+    destinations = load(ROOT / "contracts" / "destinations.json")
+    destination = next(p for p in destinations["points"] if p["id"] == "GN-001")
+    dest = {k: destination[k] for k in ("id", "label", "lat", "lon")}
+
+    hazard_signs = ["WATER_INFLOW"]
+
+    return {
+        "_scenario": "DS-S4",
+        "_why_this_moment": (
+            "지하공간에서 고립을 신고했다. 우선순위 1 이 나머지 아홉 규칙을 모두 "
+            "제치고 EMERGENCY 를 만든다. 경로는 탐색하지 않는다."
+        ),
+        "_risk_source": "contracts/fixtures/risk_S3_peak.json (RF-S3) — 실제 모델 출력",
+        "_engine": (
+            "decision·route 는 손으로 지어낸 값이 아니라 decide()/apply()/"
+            "DesignatedPointRouteProvider 가 이 입력에서 내는 값을 옮긴 것이다."
+        ),
+
+        "contract_version": CONTRACT_VERSION,
+        "source_kind": "FIXTURE",
+
+        "clock": build_clock(risk),
+
+        "location": {
+            "label": "강남역 일대",
+            "in_service_area": True,
+            "lat": 37.4979,
+            "lon": 127.0276,
+        },
+
+        "risk": risk,
+
+        "decision": {
+            "primary_action": "EMERGENCY",
+            "action": "EMERGENCY",
+            "route_postprocess_applied": False,
+            # C-23 / F-02. 고립 신고는 SEVERE 를 만들 수 있는 직접 신호 셋 중 하나다.
+            # AI 확률로는 SEVERE 에 닿지 못한다.
+            "service_risk_level": "SEVERE",
+            # EMERGENCY 는 NEEDS_ROUTE 밖이다. 손으로 정한 값이 아니라 파생값이다.
+            "needs_route": False,
+            # 재확인 시각을 두지 않는다. 이 화면에서 할 일은 119 이지 재판단이 아니다.
+            "next_check_at": None,
+            "reason_code": "TRAPPED_REPORTED",
+            "user_state": {
+                "context": "UNDERGROUND",
+                "trapped": True,
+                "hazard_signs": hazard_signs,
+                "profiles": [],
+                # F-19. EMERGENCY 가 쓰지 않아도 목적지는 필수 필드다.
+                "destination": dest,
+            },
+            "reasons": [
+                {
+                    "code": "TRAPPED_REPORTED",
+                    "text": "고립 상태로 신고됐습니다.",
+                    "value": None,
+                    "threshold": None,
+                    "basis": "TEAM_RULE",
+                },
+                {
+                    "code": "UNDERGROUND_HAZARD_SIGN",
+                    "text": "지하공간에서 현장 위험 징후가 신고됐습니다.",
+                    "value": ", ".join(hazard_signs),
+                    "threshold": None,
+                    "basis": "TEAM_RULE",
+                },
+            ],
+            "policy_version": POLICY_VERSION,
+        },
+
+        # 계약 allOf — 경로가 필요 없는 행동은 ③을 호출하지 않는다.
+        # 형태를 손으로 짓지 않고 services/route/interface.not_required() 가
+        # 만드는 것과 같게 둔다. 두 곳이 갈라지면 배선 뒤 route 블록이 바뀐다.
+        "route": {
+            "status": "NOT_REQUIRED",
+            "route_verified": False,
+            "route_target": None,
+            "target": None,
+            "route_attempted": False,
+            "no_safe_route": None,
+            "limit": "경로 탐색이 필요하지 않은 행동입니다.",
+        },
+
+        "official": official_at(build_clock(risk)["event_time"]),
+
+        "notice": {
+            "disclaimer": DISCLAIMER,
+            "route_limit": ROUTE_LIMIT,
+            "emergency_note": EMERGENCY_NOTE,
+        },
+
+        "versions": {
+            "model": f"{risk['model']['name']}-{risk['model']['version']}",
+            "policy": POLICY_VERSION,
+            "data": "processed/v2",
+            "contract": CONTRACT_VERSION,
+        },
+    }
+
+
 # --- 반드시 거부되어야 하는 조합 -------------------------------------------
 #
 # 계약이 "무엇을 막는가"는 통과 예제가 아니라 거부 예제가 증명한다. 아래 파일이
@@ -842,12 +967,13 @@ BUILDERS = {
     # M-32 의 시설 상태 흐름. 시설 값은 합성이고 risk 블록만 실제 모델 출력이다.
     "DS-S7": build_ds_s7,
     "DS-S8": build_ds_s8,
+    # P1-1. 우선순위 1(고립 신고). 경로를 타지 않는 유일한 LIVE 시나리오다.
+    "DS-S4": build_ds_s4,
 }
 
 PENDING = {
     "DS-S2": "강우·위험 상승 -> WAIT",
     "DS-S3": "공식 대피 지시 또는 AI HIGH + 실외 -> EVACUATE + SAFE_POINT",
-    "DS-S4": "trapped=true -> EMERGENCY",
     "DS-S5": "MOVE + 모든 후보 제외 -> NO_SAFE_ROUTE, 최종 WAIT",
 }
 

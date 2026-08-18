@@ -41,10 +41,10 @@ import pytest
 from conftest import load, signals_from
 
 from services.decision.enums import NEEDS_ROUTE, Action, RouteStatus
-from services.decision.postprocess import apply
+from services.decision.postprocess import apply, representative_code
 
 #: 대조할 통합 응답 픽스처. 새 DS-* 를 만들면 여기 더한다.
-DEMO_FIXTURES = ["DS-S1", "DS-S6", "DS-S7", "DS-S8"]
+DEMO_FIXTURES = ["DS-S1", "DS-S4", "DS-S6", "DS-S7", "DS-S8"]
 
 
 def postprocess_of(payload: dict, primary_action: Action):
@@ -59,12 +59,11 @@ def postprocess_of(payload: dict, primary_action: Action):
 def reason_code_of(primary_reasons, post) -> str:
     """화면의 `reason_code` 를 만드는 규칙.
 
-    경로 실패가 있으면 그것이 대표 사유다 — 사용자가 지금 마주친 것이 그것이기
-    때문이다. 실패가 없으면 행동을 만든 규칙의 사유가 대표다.
+    **규칙 자체는 `postprocess.representative_code()` 하나뿐이다**(C-21). 예전에는
+    같은 규칙이 이 파일과 `api/main.py` 에 각각 적혀 있었는데, 그러면 한쪽만
+    고쳐도 이 테스트는 초록으로 남는다 - 대조가 아니라 자기 자신을 확인하게 된다.
     """
-    if post.reason is not None:
-        return post.reason[0]
-    return primary_reasons[0].code
+    return representative_code(primary_reasons, post)
 
 
 # --- decide() 없이도 도는 검사 ------------------------------------------------
@@ -198,6 +197,16 @@ def test_픽스처의_decision_블록_전체가_엔진으로_재현된다(decide
 
     개별 필드가 다 맞아도 조합이 틀릴 수 있다. 그리고 실패했을 때 어느 필드가
     틀렸는지 한 화면에서 보는 편이 새벽 4시에 빠르다.
+
+    **이 테스트가 G2·G2.5 의 "`decision` 블록이 픽스처와 완전히 동일"을 정의한다**
+    (C-33). 런북 rev.4 §1 G1 판정 ③ 이 이미 이 테스트를 증거로 인용했다.
+    대조 범위는 아래 `actual` 의 다섯 필드 + 등급(`test_demo_fixture_consistency.py`)
+    이며 **`reasons` 배열과 `_stub` 은 대조하지 않는다** — 픽스처의 `reasons` 는
+    `_stub` 이 밝히듯 엔진 구현 전에 손으로 적은 목업이고, 다섯 필드는 설계서 9장
+    규칙표에서 유도된 독립 사양이라 성격이 다르다.
+
+    범위를 넓히거나 좁히려면 C-33 을 먼저 고친다. 여기만 고치면 게이트 기준이
+    조용히 바뀐다.
     """
     payload = load(root, name)
     decision = payload["decision"]

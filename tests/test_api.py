@@ -167,3 +167,51 @@ def test_MVP_밖_프로필은_거부한다(client):
     입력 오류를 서버 오류로 보고하는 것이다.
     """
     assert client.get("/api/assess", params={"profile": ["WHEELCHAIR"]}).status_code == 400
+
+
+# --- 화면이 자기 모순을 말하지 않는가 ----------------------------------------
+
+
+@pytest.mark.parametrize("scenario", ["DS-S1", "DS-S4", "DS-S6", "DS-S7", "DS-S8"])
+def test_대표_사유는_항상_이유_목록_안에_있다(client, scenario):
+    """**이 파일에서 가장 중요한 불변식.**
+
+    화면은 `decision.reasons` 만 렌더한다(`App.tsx` -> `ReasonList`). `reason_code`
+    는 계약 필드일 뿐 어디에도 찍히지 않는다. 그래서 대표 사유가 목록에 없으면
+    **사용자에게 도달하지 않는다.**
+
+    깨진 적이 있다: `DS-S6` 의 `reason_code` 는 `ROUTE_DESTINATION_BLOCKED` 인데
+    이유 목록은 `[NO_TRIGGER]` 뿐이라, 경로 카드가 "목적지 차단"을 띄우는 동안
+    이유 카드는 "행동을 바꿀 조건이 확인되지 않았습니다"를 보여줬다.
+    """
+    decision = client.get("/api/assess", params={"scenario": scenario}).json()["decision"]
+    codes = [r["code"] for r in decision["reasons"]]
+
+    assert decision["reason_code"] in codes, (
+        f"{scenario}: 대표 사유 {decision['reason_code']} 가 이유 목록 {codes} 에 없다 — "
+        f"화면에서 사라지는 문구다."
+    )
+
+
+@pytest.mark.parametrize(
+    ("scenario", "expected"),
+    [("DS-S6", "ROUTE_DESTINATION_BLOCKED"), ("DS-S8", "ROUTE_NO_SAFE_POINT")],
+)
+def test_경로_실패_사유가_화면_이유에_남는다(client, scenario, expected):
+    """M-15·M-16 유지 조합. 행동은 그대로지만 **실패 사유는 말해야 한다.**
+
+    `route_postprocess_applied` 가 false 라 전환 배너도 뜨지 않는다. 이 사유가
+    목록에서 빠지면 화면 어디에도 "왜 안내가 멈췄는지"가 남지 않는다.
+    """
+    body = client.get("/api/assess", params={"scenario": scenario}).json()
+    codes = [r["code"] for r in body["decision"]["reasons"]]
+
+    assert expected in codes, f"{scenario}: {expected} 가 이유 목록 {codes} 에서 빠졌다"
+    assert body["decision"]["reason_code"] == expected
+
+
+def test_이유_목록은_경로_사유를_붙여도_상한을_지킨다(client):
+    """C-15. 계약 `maxItems: 3` 은 사유를 덧붙인 뒤에도 유효하다."""
+    for scenario in ("DS-S1", "DS-S4", "DS-S6", "DS-S7", "DS-S8"):
+        reasons = client.get("/api/assess", params={"scenario": scenario}).json()["decision"]["reasons"]
+        assert 1 <= len(reasons) <= 3, scenario

@@ -8,7 +8,7 @@
 `route` 블록도 이제 실제 경로 엔진(`DesignatedPointRouteProvider`)을 거친다(P0-6) —
 단, `DS-S7`·`DS-S8`은 시설 만석 서사가 진짜 엔진으로 재현되지 않아 여전히 픽스처
 STUB(`FixtureRouteProvider`)을 쓴다. 그래서 `source_kind`도 시나리오별로 갈린다:
-`DS-S1`·`DS-S6`은 `LIVE_PIPELINE`, `DS-S7`·`DS-S8`은 `FIXTURE`로 남는다.
+`DS-S1`·`DS-S4`·`DS-S6`은 `LIVE_PIPELINE`, `DS-S7`·`DS-S8`은 `FIXTURE`로 남는다.
 
 이 파일이 하는 일은 넷이다.
 1. 픽스처를 읽고
@@ -43,7 +43,7 @@ from api.fixtures import (
 from services.decision.adapters import signals_from
 from services.decision.decide import decide
 from services.decision.enums import Action, Profile, RouteStatus
-from services.decision.postprocess import apply
+from services.decision.postprocess import apply, final_reasons, representative_code
 from services.decision.service_risk import classify
 from services.route.fixture_provider import FixtureRouteProvider
 from services.route.interface import RouteProvider, RouteRequest
@@ -57,14 +57,21 @@ DEFAULT_SCENARIO = os.environ.get("MAREUNGIL_DEFAULT_SCENARIO", "DS-S1")
 
 #: 실제 경로 엔진으로 재현 가능한 시나리오. `DS-S7`·`DS-S8`은 시설 만석 서사가
 #: 진짜 엔진으로 재현되지 않아 픽스처 STUB(`FixtureRouteProvider`)에 남는다.
-LIVE_SCENARIOS = {"DS-S1", "DS-S6"}
+#:
+#: `DS-S4`(고립 신고)는 **경로 엔진을 타지만 후보 비교를 하지 않는다** - `EMERGENCY`
+#: 는 `not_required()` 로 끝나므로 센서도 안전거점도 필요 없다. 그래서 가장 싸게
+#: LIVE 가 된다. 픽스처를 엔진 출력에 맞춰 썼기 때문에 여기 넣어도 응답 본문은
+#: 바뀌지 않는다 - 바뀌는 것은 STUB provider 가 박던 거짓 `_stub` 표시가 사라지는
+#: 것과 `source_kind` 가 사실을 말하게 되는 것 둘뿐이다.
+LIVE_SCENARIOS = {"DS-S1", "DS-S4", "DS-S6"}
 
 app = FastAPI(
     title="마른길 통합 API",
     version="0.1.0",
     description=(
         "2022-08-08 강남 집중호우 재생. **교육·시연용이며 공식 재난안전 판단 도구가 아니다.** "
-        "현재 응답은 전부 픽스처 기반이며 source_kind 필드로 표시된다."
+        "위험·행동 판정은 실제 엔진이 계산하고, 경로는 시나리오에 따라 실제 엔진과 "
+        "픽스처로 갈린다. 어느 쪽인지는 응답의 source_kind 필드가 시나리오마다 밝힌다."
     ),
 )
 
@@ -187,7 +194,10 @@ def _apply_decision_engine(body: dict, profiles: list[str]) -> dict:
     route = provider_for(body).solve(route_request_from(body, primary.action, profiles))
     post = apply(primary.action, RouteStatus(route["status"]))
 
-    reason_code = post.reason[0] if post.reason is not None else primary.reasons[0].code
+    # 대표 사유와 이유 목록은 같은 후처리 결과에서 나온다. 따로 만들면 배너와
+    # 목록이 서로 다른 말을 하게 된다 - `DS-S6` 가 실제로 그랬다.
+    reason_code = representative_code(primary.reasons, post)
+    reasons = final_reasons(primary.reasons, post)
 
     out = json.loads(json.dumps(body))  # 원본 픽스처를 건드리지 않는다
     out["route"] = route
@@ -199,7 +209,7 @@ def _apply_decision_engine(body: dict, profiles: list[str]) -> dict:
         service_risk_level=risk_result.level.value,
         needs_route=primary.needs_route,
         reason_code=reason_code,
-        reasons=[r.as_dict() for r in primary.reasons],
+        reasons=[r.as_dict() for r in reasons],
     )
     out["source_kind"] = "LIVE_PIPELINE" if body.get("_scenario") in LIVE_SCENARIOS else "FIXTURE"
     return out
