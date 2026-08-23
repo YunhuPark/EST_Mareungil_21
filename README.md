@@ -190,12 +190,14 @@ Windows·macOS 를 섞어 쓰므로, **한쪽에서만 터지는** 문제를 미
 | 문서 | 내용 |
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | **저장소 작업 규칙.** enum, 금칙어, 모듈 의존 방향, 계약 변경 절차 |
-| [docs/HACKATHON_11H_RUNBOOK.md](docs/HACKATHON_11H_RUNBOOK.md) | 11시간 실행계획과 담당 배치 |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | 기술 선택과 **미확정(OPEN) 목록** |
-| [docs/GITHUB_SETUP.md](docs/GITHUB_SETUP.md) | 저장소 생성과 5인 공유 |
-| [docs/REPOSITORY_AUDIT.md](docs/REPOSITORY_AUDIT.md) | 구현됨 / STUB / 없음 구분 |
-| [docs/HACKATHON_CHECKLIST.md](docs/HACKATHON_CHECKLIST.md) | 게이트별·데모 직전 체크리스트 |
-| [docs/README.md](docs/README.md) | 설계·요구사항 문서 세트 |
+| `HACKATHON_11H_RUNBOOK.md` | 11시간 실행계획과 담당 배치 |
+| `DECISIONS.md` | 기술 선택과 **미확정(OPEN) 목록** |
+| `GITHUB_SETUP.md` | 저장소 생성과 5인 공유 |
+| `REPOSITORY_AUDIT.md` | 구현됨 / STUB / 없음 구분 |
+| `HACKATHON_CHECKLIST.md` | 게이트별·데모 직전 체크리스트 |
+
+> **이 문서들은 저장소에 없다.** 공개 저장소라 내부 문서를 두지 않기로 했다(v1.0.0).
+> 필요하면 저장소 소유자에게 받는다.
 
 ---
 
@@ -310,7 +312,6 @@ scripts/              데이터·모델 파이프라인 (기존 자산)
    ├─ features.py     피처·타깃·고수위 임계
    ├─ evaluate.py     국면 분해 평가 (상승전이 중심)
    └─ policy.py       경보 임계정책, 경보해제
-docs/                 설계·요구사항·실행계획·결정 기록
 ```
 
 의존은 한 방향으로만 흐른다. 자세한 규칙은 [CLAUDE.md](CLAUDE.md) 9절.
