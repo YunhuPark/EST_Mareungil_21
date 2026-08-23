@@ -24,9 +24,10 @@ STUB(`FixtureRouteProvider`)을 쓴다. 그래서 `source_kind`도 시나리오�
 
 from __future__ import annotations
 
+import logging
 import os
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.fixtures import (
@@ -39,11 +40,55 @@ from api.fixtures import (
     load_scenarios,
     load_validators,
 )
+from api.ratelimit import RateLimitMiddleware, TokenBucketLimiter
 from services.decision.enums import Profile
 from services.pipeline import apply_engine, provider_for
 
+logger = logging.getLogger("mareungil.api")
+
 CONTRACT_VERSION = os.environ.get("MAREUNGIL_CONTRACT_VERSION", "v1")
 DEFAULT_SCENARIO = os.environ.get("MAREUNGIL_DEFAULT_SCENARIO", "DS-S1")
+
+#: 배포 환경. `production` 이면 대화형 문서(`/docs`·`/redoc`·`/openapi.json`)를 닫는다.
+#: 개발에서는 그대로 열어 둔다 — 이 파일 맨 위가 안내하는 그 문서다.
+IS_PRODUCTION = os.environ.get("MAREUNGIL_ENV", "development").strip().lower() == "production"
+
+#: 브라우저에서 이 API 를 부를 수 있는 출처. **기본값은 로컬 개발 주소뿐이다.**
+#:
+#: 예전에는 `["*"]` 을 박아 두고 바로 옆에 "데모는 로컬 전용"이라고 적어 두었는데,
+#: `render.yaml` 로 배포한 순간 그 주석이 사실이 아니게 됐다. 자격증명을 싣지 않으니
+#: 훔쳐갈 세션은 없지만, **허용 출처는 코드가 아니라 배포 설정이 정하는 값이다.**
+#:
+#:     MAREUNGIL_CORS_ORIGINS=https://mareungil.vercel.app
+#:     MAREUNGIL_CORS_ORIGIN_REGEX=https://mareungil-.*\.vercel\.app   # 프리뷰 배포
+#:
+#: 정말 전부 열어야 하면 `MAREUNGIL_CORS_ORIGINS=*` 로 **명시해서** 연다. 기본값에
+#: 숨어 있는 것과 배포 설정에 적혀 있는 것은 다른 상태다.
+DEFAULT_CORS_ORIGINS = (
+    "http://127.0.0.1:5173,http://localhost:5173,"
+    "http://127.0.0.1:4173,http://localhost:4173"
+)
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("MAREUNGIL_CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
+CORS_ORIGIN_REGEX = os.environ.get("MAREUNGIL_CORS_ORIGIN_REGEX") or None
+
+#: 한 IP 가 `MAREUNGIL_RATE_WINDOW_SEC` 초 동안 보낼 수 있는 요청 수. `0` 이면 끈다.
+#:
+#: 기본값 60회/60초는 **사람이 쓰다가 걸릴 일이 없는 값**으로 잡았다. 화면 하나가
+#: 움직일 때 API 를 세 번 부르므로 분당 20번 조작해야 닿는다. 막으려는 것은 사용자가
+#: 아니라 초당 수십 번 두드리는 쪽이다.
+RATE_LIMIT = int(os.environ.get("MAREUNGIL_RATE_LIMIT", "60"))
+RATE_WINDOW_SEC = float(os.environ.get("MAREUNGIL_RATE_WINDOW_SEC", "60"))
+
+#: 앞에 둔 **신뢰하는** 프록시 단수. 0 이면 `X-Forwarded-For` 를 아예 믿지 않는다.
+#:
+#: Render 처럼 프록시 뒤에 놓을 때만 1 로 준다(`render.yaml`). 틀리게 크게 잡으면
+#: 클라이언트가 적어 보낸 값을 믿게 되어 한도를 우회당하고, 프록시 뒤인데 0 으로
+#: 두면 모든 요청이 프록시 IP 하나로 뭉쳐 서로의 한도를 갉아먹는다.
+TRUSTED_PROXY_HOPS = int(os.environ.get("MAREUNGIL_TRUSTED_PROXY_HOPS", "0"))
 
 app = FastAPI(
     title="마른길 통합 API",
@@ -53,15 +98,78 @@ app = FastAPI(
         "위험·행동 판정은 실제 엔진이 계산하고, 경로는 시나리오에 따라 실제 엔진과 "
         "픽스처로 갈린다. 어느 쪽인지는 응답의 source_kind 필드가 시나리오마다 밝힌다."
     ),
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
 
-# 프론트 개발 서버(Vite)에서 직접 호출할 수 있게 열어둔다. 데모는 로컬 전용이다.
+# --- 미들웨어 -----------------------------------------------------------------
+#
+# **나중에 add 한 것이 바깥에 선다**(Starlette). 그래서 아래 순서는 이렇게 감싼다:
+#
+#     security_headers  ->  CORS  ->  RateLimit  ->  앱
+#
+# 빈도 제한을 CORS 안쪽에 두는 이유가 있다. 429 응답에도 CORS 헤더가 붙어야
+# 브라우저가 그것을 "요청이 잦다"로 읽는다. 바깥에 두면 화면에는 정체불명의
+# CORS 오류만 뜨고 진짜 이유가 사라진다.
+
+if RATE_LIMIT > 0:
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=TokenBucketLimiter(RATE_LIMIT, RATE_WINDOW_SEC),
+        trusted_hops=TRUSTED_PROXY_HOPS,
+    )
+
+# 프론트(Vite 개발 서버·배포된 웹)에서 직접 호출할 수 있게 열어둔다.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+#: 모든 응답에 붙이는 방어 헤더.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next) -> Response:
+    """스니핑·클릭재킹·리퍼러 유출을 막는 헤더를 붙인다.
+
+    `/api/*` 에는 CSP 까지 건다 — 이 API 는 JSON 밖에 돌려주지 않으므로 무엇도
+    불러올 필요가 없고 프레임에 실릴 이유도 없다. 문서 페이지(`/docs`)에는 걸지
+    않는다. Swagger UI 가 CDN 스크립트를 쓰므로 같은 CSP 를 걸면 빈 화면이 된다.
+    """
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    if request.url.path.startswith("/api/"):
+        response.headers.setdefault(
+            "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+        )
+    return response
+
+
+#: 오류 메시지에 사용자 입력을 되비칠 때의 길이 상한.
+ECHO_LIMIT = 64
+
+
+def _echo(value: str) -> str:
+    """사용자 입력을 오류 메시지에 넣기 전에 자른다.
+
+    자르지 않으면 5만 자를 보낸 요청이 5만 자를 그대로 돌려받는다 — 서버가 남의
+    입력을 증폭해 주는 셈이다. 무엇을 잘못 보냈는지 알려주는 데 64자면 충분하다.
+    """
+    text = str(value)
+    if len(text) <= ECHO_LIMIT:
+        return text
+    return f"{text[:ECHO_LIMIT]}…(총 {len(text)}자)"
+
 
 _validators = load_validators()
 _scenarios = load_scenarios()
@@ -169,7 +277,7 @@ def assess(
     if body is None:
         raise HTTPException(
             404,
-            f"시나리오 {scenario} 가 없다. 사용 가능: {sorted(_scenarios)}",
+            f"시나리오 {_echo(scenario)} 가 없다. 사용 가능: {sorted(_scenarios)}",
         )
 
     if destination is not None:
@@ -178,7 +286,7 @@ def assess(
             # RT-14/RT-15. 목록 밖 지점은 애초에 받지 않는다.
             raise HTTPException(
                 400,
-                f"지정 지점 목록에 없는 목적지 {destination}. 사용 가능: {sorted(_points)}",
+                f"지정 지점 목록에 없는 목적지 {_echo(destination)}. 사용 가능: {sorted(_points)}",
             )
         body = apply_destination(body, point)
 
@@ -189,9 +297,14 @@ def assess(
         if unknown:
             raise HTTPException(
                 400,
-                f"MVP 가 지원하지 않는 프로필 {unknown}. "
+                f"MVP 가 지원하지 않는 프로필 {[_echo(p) for p in unknown[:5]]}. "
                 f"사용 가능: {sorted(m.value for m in Profile)}",
             )
+        # 계약은 프로필을 집합으로 본다(`uniqueItems`). 중복을 그대로 흘리면 아래
+        # 계약 검증이 500 을 내는데, 그것이야말로 이 블록이 막으려던 상황이다 —
+        # `?profile=ELDERLY&profile=ELDERLY` 한 번이면 사용자 입력 오류가 서버
+        # 오류로 보고된다. 고른 순서는 유지한 채 중복만 걷어낸다.
+        profile = list(dict.fromkeys(profile))
         body = apply_profiles(body, profile)
 
     if trapped:
@@ -204,6 +317,13 @@ def assess(
 
     violations = contract_errors(_validators, body)
     if violations:
-        raise HTTPException(500, {"contract_violations": violations[:10]})
+        # 계약 위반은 **서버 잘못이다.** 무엇이 어긋났는지는 로그에 남기고 클라이언트
+        # 에는 스키마 경로를 주지 않는다 — 내부 구조를 그대로 읽어주는 응답은 정찰에
+        # 쓰인다. 개발 중에는 서버 콘솔에서 같은 내용을 그대로 본다.
+        logger.error(
+            "계약 위반 (scenario=%s, destination=%s, profiles=%s): %s",
+            scenario, destination, profile, violations[:10],
+        )
+        raise HTTPException(500, "응답이 내부 계약을 어겼다. 서버 로그를 확인하라.")
 
     return body

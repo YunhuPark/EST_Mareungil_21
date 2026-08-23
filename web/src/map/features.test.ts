@@ -88,6 +88,55 @@ describe('한계 문구 (RT-02 · M-22)', () => {
   });
 });
 
+describe('팝업은 응답 문자열을 마크업으로 해석하지 않는다', () => {
+  /**
+   * leaflet 의 `bindPopup(string)` 은 문자열을 HTML 로 넣는다. 팝업에 실리는 값
+   * 셋이 응답에서 오므로(도달 대상 이름 · 센서 id·자치구 · 범위 이름), 실사용
+   * 데이터로 갈아탈 때 그대로 두면 주입 통로가 된다.
+   *
+   * 계약은 이것을 막지 않는다 — JSON Schema 는 문자열 안에 `<script>` 가 있는지
+   * 보지 않는다. 그래서 넣는 쪽에서 막고, 그것을 여기서 확인한다.
+   */
+  const PAYLOAD = '<img src=x onerror="alert(1)">';
+
+  it('도달 대상 이름에 태그가 들어와도 글자로 남는다', () => {
+    const hostile: AssessResponse = {
+      ...s1,
+      route: { ...s1.route, target: { ...s1.route.target!, label: PAYLOAD } },
+    };
+
+    const target = baseFeatures(hostile).find((f) => f.kind === 'TARGET');
+    const html = popupHtml(target!);
+
+    // `onerror=` 라는 **글자**는 남는다. 그것으로 충분하다 — `<` 와 `"` 가
+    // 막혀 있으면 속성이 될 수 없다. 태그가 열리는지만 본다.
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
+    expect(html).toContain('&quot;');
+  });
+
+  it('센서 자치구 이름도 같이 막는다', () => {
+    const sensors = sensorsInScope(s4.risk.sensors);
+    expect(sensors.length).toBeGreaterThan(0);
+
+    const hostile = [{ ...sensors[0]!, district: PAYLOAD }];
+    const point = evidenceFeatures(hostile, scope, s4.risk.primary_horizon).find(
+      (f) => f.kind === 'SENSOR_POINT',
+    );
+
+    expect(popupHtml(point!)).not.toContain('<img');
+  });
+
+  it('우리가 넣는 줄바꿈만 마크업으로 남는다', () => {
+    const point = allFeatures(s4).find((f) => f.kind === 'SENSOR_POINT');
+    const html = popupHtml(point!);
+
+    // 여러 줄짜리 팝업이라 <br> 은 있어야 하고, 그 밖의 태그는 없어야 한다.
+    expect(html).toContain('<br>');
+    expect(html.replace(/<br>/g, '')).not.toMatch(/<[a-zA-Z/]/);
+  });
+});
+
 describe('좌표를 지어내지 않는다', () => {
   /** 응답이 실어 보낸 좌표 전부. 이 밖의 좌표는 화면이 만든 것이다. */
   function allowed(data: AssessResponse, withScope: Scope | null): Set<string> {

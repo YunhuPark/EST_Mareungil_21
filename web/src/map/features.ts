@@ -78,9 +78,36 @@ export interface MapFeature {
   style: FeatureStyle;
 }
 
-/** 팝업 HTML. 한계 문구는 **항상 마지막 줄로 남는다.** */
+/**
+ * 지도 팝업에 넣기 전에 마크업을 무력화한다.
+ *
+ * leaflet 의 `bindPopup(string)` 은 받은 문자열을 **HTML 로 넣는다.** 그런데
+ * 팝업에 실리는 값 중 셋은 응답에서 온다 — `route.target.label`,
+ * `risk.sensors[].id`·`district`, `/api/destinations` 의 `scope.center_label`.
+ * 지금은 저장소가 만든 픽스처라 안전하지만, **이 프로젝트가 가려는 곳은
+ * 실사용 전환**이고 그때 이 세 값은 외부 데이터가 된다.
+ *
+ * 계약이 막아주지 않는다. JSON Schema 는 문자열의 길이와 형식을 볼 뿐 그 안에
+ * `<script>` 가 있는지는 보지 않는다. 그러니 넣는 쪽에서 막는다.
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * 팝업 HTML. 한계 문구는 **항상 마지막 줄로 남는다.**
+ *
+ * 줄바꿈 `<br>` 만 우리가 넣는 마크업이고 나머지는 전부 글자로 처리한다.
+ */
 export function popupHtml(feature: MapFeature): string {
-  return [feature.label, ...(feature.detail ?? []), feature.limit].join('<br>');
+  return [feature.label, ...(feature.detail ?? []), feature.limit]
+    .map(escapeHtml)
+    .join('<br>');
 }
 
 /** 임계 초과 · 미만 · 판단 불가. 셋을 각각 다르게 그린다. */

@@ -266,7 +266,7 @@ case "$TASK" in
     LOG="$(new_log api)"
     printf '%s  로그: %s%s\n' "$C_DIM" "$LOG" "$C_OFF"
     # -u : 출력이 파이프로 가면 파이썬이 버퍼링해서 로그가 뭉텅이로 늦게 나온다.
-    (cd "$ROOT" && "$PY" -u -m uvicorn api.main:app --reload --host "$API_HOST" --port "$API_PORT" 2>&1) | tee -a "$LOG"
+    (cd "$ROOT" && "$PY" -u -m uvicorn api.main:app --reload --no-server-header --no-proxy-headers --host "$API_HOST" --port "$API_PORT" 2>&1) | tee -a "$LOG"
     ;;
 
   web)
