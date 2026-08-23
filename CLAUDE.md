@@ -3,11 +3,13 @@
 이 파일은 사람과 Claude Code가 **같은 규칙으로** 이 저장소를 고치기 위한 기준이다.
 코드를 고치기 전에 이 문서를 먼저 읽는다.
 
-> 최종 갱신: 2026-08-23 · 지도 레이어를 `map/features.ts`(순수 변환)·`map/leaflet.ts`
-> (라이브러리 경계)·`MapPanel.tsx`(DOM) 셋으로 나누고, 경로 provider 시그니처
-> 어긋남(감사 10.3)을 닫으면서 다시 썼다. 그 전에는 O-16(DQ-03 관측률 지표)과
-> C-32(안전거점 후보 집합 7곳), 최종 회의 확정사항(M-01~M-39)을 반영했다.
-> 검증 규모는 **계약 픽스처 25건 · Python 399건 · 프론트 67건**이다.
+> 최종 갱신: 2026-08-23 · **픽스처와 엔진의 정본을 하나로 합쳤다** — 생성기가
+> `services/pipeline.apply_engine()` 을 직접 부르고, API 도 같은 함수를 부른다.
+> 같은 날 지도 레이어를 `map/features.ts`(순수 변환)·`map/leaflet.ts`(라이브러리
+> 경계)·`MapPanel.tsx`(DOM) 셋으로 나누고 경로 provider 시그니처 어긋남(감사 10.3)을
+> 닫았다. 그 전에는 O-16(DQ-03 관측률 지표)·C-32(안전거점 후보 집합 7곳)와
+> 최종 회의 확정사항(M-01~M-39)을 반영했다.
+> 검증 규모는 **계약 픽스처 25건 · Python 415건 · 프론트 67건**이다.
 
 ## 1. 프로젝트 한 문장
 
@@ -42,9 +44,14 @@
   없고, 시설 상태 전환은 픽스처로 시연될 뿐 선택 로직이 없다. 그렇게 나눠 적는다.
 - **"확정됐다"와 "검증됐다"도 다르다.** 지역 임계 0.5와 프로필 수치는 팀 합의값이며
   근거 데이터로 튜닝한 값이 아니다. 발표에서 그대로 말한다.
-- **"구현됐다"와 "호출된다"도 다르다.** `classify()`·`apply()`·`visible_at()` 은 구현돼 있고
-  테스트가 53건 붙어 있지만 **`api/main.py` 는 셋 중 아무것도 부르지 않는다.** 로직이 있는 것과
-  런타임에 그 로직이 도는 것을 나눠 적는다.
+- **"구현됐다"와 "호출된다"도 다르다.** 한때 `classify()`·`apply()`·`visible_at()` 은
+  테스트가 53건 붙은 채로 **런타임에 아무도 부르지 않는** 상태였다(감사 10.2). 지금은
+  셋 다 배선돼 있다 — `api/main.py` 와 픽스처 생성기가 `services/pipeline` 을 통해
+  같은 함수를 부른다. 로직이 있는 것과 런타임에 그 로직이 도는 것을 계속 나눠 적는다.
+- **"픽스처에 있다"와 "화면에 나온다"도 다르다.** 이것으로 한 번 크게 당했다 —
+  `DS-S1` 픽스처의 근거 3줄과 후보 목록은 화면에 나온 적이 없다. API 가 그 블록을
+  덮어썼기 때문이다. 지금은 픽스처가 곧 엔진 출력이라 둘이 갈라질 수 없고,
+  `tests/test_fixture_engine_roundtrip.py` 가 그것을 지킨다.
 - 현재 상태는 [docs/REPOSITORY_AUDIT.md](docs/REPOSITORY_AUDIT.md) **6절과 10절**이 정본이다.
   **`docs/마른길_MVP_설계서.md` 8.5.4 와 `docs/HACKATHON_11H_RUNBOOK.md` 의 T+ 일정표는
   구현 상태·일정의 근거로 쓰지 않는다** — 부트스트랩 직전 상태에서 멈춰 있다.
@@ -274,10 +281,32 @@ services/    services/       api/  ────→  web/  (HTTP 로만 연결)
 | `contracts/` | JSON Schema·픽스처·계약 검증 | 없음 | 서비스 코드 import |
 | `services/decision/` | **순수** 결정 로직. 입력→출력 함수만 | `contracts` | I/O, HTTP, 파일 읽기, `services/route` |
 | `services/route/` | 후보 경로 비교 인터페이스 | `contracts`, **`services.decision.enums` (아래 예외)** | `services/decision`의 그 밖의 모듈 |
-| `api/` | 세 계약을 묶어 `AssessResponse` 하나를 제공 | `services/*`, `contracts` | UI 로직, 정책 판정 |
+| `services/pipeline.py` | 두 엔진을 `AssessResponse` 하나로 **조립** | `services/decision`, `services/route` | 정책 판정, 파일 읽기, HTTP |
+| `api/` | 조립 결과에 데이터를 물리고 계약을 검증해 제공 | `services/*`, `contracts` | UI 로직, 정책 판정, **조립 재구현** |
 | `web/` | 모바일 단일 화면 렌더링 | HTTP API 응답만 | 정책 재구현, 임계값 하드코딩 |
 | `scripts/` | 데이터·모델 파이프라인, 문서용 렌더 (기존 자산) | `scripts/mareungil`, **읽기 전용으로 `services/*`** | `api`, `web` |
 | `tests/` | 계약·정책·API 통합 테스트 | 전부 | — |
+
+### 조립은 `services/pipeline` 하나뿐이다
+
+**`decision`·`route` 블록을 채우는 코드를 두 벌 만들지 않는다.** `api/main.py` 와
+`scripts/build_demo_assess_fixtures.py` 가 같은 `apply_engine()` 을 부른다.
+
+두 벌이었을 때 무슨 일이 있었는지 적어 둔다. 생성기는 `decision`·`route` 를 손으로
+적었고 API 는 그것을 통째로 덮어썼다. `DS-S1` 픽스처에는 근거 3줄과 후보 목록이
+실려 있었지만 **화면에는 근거 1줄이 나갔다.** 픽스처를 읽는 사람과 화면을 보는
+사람이 서로 다른 값을 보고 있었고, 프론트 테스트는 픽스처를 직접 렌더링하고 있어서
+**API 가 내보내지 않는 형태**를 검증하고 있었다.
+
+- 행동·등급·근거·경로가 필요하면 `apply_engine()` 을 부른다. 손으로 적지 않는다.
+- 픽스처를 손으로 고치지 않는다. `.\make.ps1 fixtures` 로 다시 만든다.
+- `tests/test_fixture_engine_roundtrip.py` 가 지킨다 — 픽스처를 파이프라인에
+  통과시키면 자기 자신이 나와야 한다. **계약 검증은 이것을 못 잡는다**: 계약이 보는
+  것은 형식이고 이 검사가 보는 것은 출처다.
+
+엔진이 재현하지 못해 손으로 남긴 것은 `DS-S7`·`DS-S8` 의 `route` 뿐이다 — 시설
+만석·폐쇄 서사이며 저장소에 대피시설 운영상태 원자료가 없다(M-32). 그 둘만
+`source_kind: FIXTURE` 이고 나머지 셋은 `LIVE_PIPELINE` 이다.
 
 ### 예외 하나 — `services/route` → `services/decision/enums`
 

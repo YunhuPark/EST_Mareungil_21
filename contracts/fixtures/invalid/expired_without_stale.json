@@ -1,6 +1,7 @@
 {
+  "_engine": "decision·route 는 services/pipeline.apply_engine() 이 채운 값이다. api/main.py 가 응답을 조립할 때 부르는 그 함수이며 손으로 적은 값이 아니다.",
   "contract_version": "v1",
-  "source_kind": "FIXTURE",
+  "source_kind": "LIVE_PIPELINE",
   "clock": {
     "mode": "REPLAY",
     "event_time": "2022-08-08T11:00:00+09:00",
@@ -49,14 +50,7 @@
     }
   },
   "decision": {
-    "_stub": "우선순위 10(그 외) 기본값. services/decision 구현 전 손으로 적은 값이다.",
-    "primary_action": "MOVE",
-    "action": "MOVE",
-    "route_postprocess_applied": false,
-    "service_risk_level": "SAFE",
-    "needs_route": true,
     "next_check_at": "2022-08-08T11:30:00+09:00",
-    "reason_code": "NO_TRIGGER",
     "user_state": {
       "context": "OUTDOOR",
       "trapped": false,
@@ -69,74 +63,22 @@
         "lon": 127.0365
       }
     },
+    "policy_version": "policy-0.1.0-draft",
+    "primary_action": "MOVE",
+    "action": "MOVE",
+    "route_postprocess_applied": false,
+    "service_risk_level": "SAFE",
+    "needs_route": true,
+    "reason_code": "NO_TRIGGER",
     "reasons": [
       {
-        "code": "AI_AREA_LOW",
-        "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 0.0).",
-        "value": 0.0,
-        "threshold": 0.5,
-        "basis": "AI_PREDICTION"
-      },
-      {
-        "code": "RAIN_BELOW_THRESHOLD",
-        "text": "10분 강우와 60분 누적 강우가 모두 팀 기준값 아래입니다.",
-        "value": 0.0,
-        "threshold": "10분 5mm 또는 60분 40mm",
-        "basis": "TEAM_RULE"
-      },
-      {
-        "code": "NO_OFFICIAL_ORDER",
-        "text": "이 시각 기준 공식 대피 지시가 없습니다.",
+        "code": "NO_TRIGGER",
+        "text": "행동을 바꿀 조건이 확인되지 않았습니다.",
         "value": null,
         "threshold": null,
-        "basis": "OFFICIAL_GUIDANCE"
+        "basis": "TEAM_RULE"
       }
-    ],
-    "policy_version": "policy-0.1.0-draft"
-  },
-  "route": {
-    "_stub": "services/route 미구현. 후보 비교 결과가 아니라 형식을 보여주는 자리표시자다.",
-    "status": "FALLBACK_CANDIDATE",
-    "route_verified": false,
-    "route_target": "USER_DESTINATION",
-    "target": {
-      "kind": "DESTINATION_POINT",
-      "id": "GN-003",
-      "label": "역삼역",
-      "lat": 37.5006,
-      "lon": 127.0365,
-      "reason": "사용자가 고른 목적지",
-      "data_asof": "2022-08-08T11:00:00+09:00"
-    },
-    "route_attempted": true,
-    "no_safe_route": false,
-    "distance_m": 840,
-    "eta_sec": 720,
-    "detour_ratio": 1.0,
-    "candidates": [
-      {
-        "route_id": "OFR-07",
-        "label": "테헤란로 북측 보도",
-        "rank": 1,
-        "relative_risk": 0.08,
-        "distance_m": 840,
-        "excluded": false,
-        "excluded_by": null
-      },
-      {
-        "route_id": "OFR-12",
-        "label": "역삼로 방면",
-        "rank": 2,
-        "relative_risk": 0.14,
-        "distance_m": 910,
-        "excluded": false,
-        "excluded_by": null
-      }
-    ],
-    "hazards": [],
-    "profile_applied": [],
-    "limit": "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보",
-    "source": "fixture:official_routes_30"
+    ]
   },
   "official": {
     "source": "서울특별시 물순환안전국 공식 보고서 · 연합뉴스 · TBS · 서울시 미디어재단 · 강남구청 (원문 대조표: sources/2022-08-08_gangnam_verified_events.csv)",
@@ -182,6 +124,24 @@
     "policy": "policy-0.1.0-draft",
     "data": "processed/v2",
     "contract": "v1"
+  },
+  "route": {
+    "status": "FALLBACK_CANDIDATE",
+    "route_verified": false,
+    "route_target": "USER_DESTINATION",
+    "target": {
+      "kind": "DESTINATION_POINT",
+      "id": "GN-003",
+      "label": "역삼역",
+      "lat": 37.5006,
+      "lon": 127.0365
+    },
+    "route_attempted": true,
+    "no_safe_route": false,
+    "distance_m": 840.5816479996291,
+    "eta_sec": null,
+    "profile_applied": [],
+    "limit": "지정 지점에 대한 점대점 비교 결과이며 실제 통행 가능성이나 안전을 보장하지 않습니다."
   },
   "_expect_invalid": {
     "schema": "assess_response",

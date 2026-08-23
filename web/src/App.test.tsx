@@ -95,7 +95,9 @@ describe('모바일 화면', () => {
 
     expect(info.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByRole('heading', { name: '데이터 출처와 한계' })).toBeDefined();
-    expect(screen.getByText(/시연용 고정 데이터/)).toBeDefined();
+    // 출처가 LIVE 든 FIXTURE 든 **2022년 재생이라는 사실은 빠지지 않는다.**
+    // 갈래별 문구를 여기서 굳히면 `source_kind` 가 바뀔 때 이 검사가 같이 거짓이 된다.
+    expect(screen.getByText(/2022년 과거 기록 재생/)).toBeDefined();
     expect(screen.getByText('공식정보 출처 보기')).toBeDefined();
 
     // 계약·정책·모델 판은 API와 개발 문서에 남기고 일반 사용자 화면에서는 뺀다.
@@ -117,8 +119,26 @@ describe('모바일 화면', () => {
     expect(data.route.route_verified).toBe(false);
   });
 
-  it('픽스처 기반임을 화면에 표시한다', () => {
-    render(<App initialData={data} />);
+  /**
+   * 어느 갈래인지 **실제 픽스처 두 개로** 본다.
+   *
+   * `DS-S1`·`DS-S4`·`DS-S6` 은 판정과 경로를 엔진이 계산하므로 `LIVE_PIPELINE`
+   * 이고, `DS-S7`·`DS-S8` 은 시설 만석 서사를 엔진이 재현하지 못해 픽스처로
+   * 남는다(M-32). 한쪽만 보면 배지를 굳혀도 초록이라 둘 다 본다.
+   *
+   * 예전에는 이 검사가 `DS-S1` 에 픽스처 문구를 기대했다. 그런데 API 는 그
+   * 시나리오를 이미 `LIVE_PIPELINE` 로 내보내고 있었다 — 픽스처 파일만 `FIXTURE`
+   * 라고 적혀 있었고, 테스트는 **화면에 나오지 않는 배지**를 지키고 있었다.
+   */
+  it('어느 갈래인지 화면에 표시한다 (LIVE · FIXTURE)', () => {
+    const live = render(<App initialData={data} />);
+    expect(data.source_kind).toBe('LIVE_PIPELINE');
+    expect(screen.getByText('LIVE')).toBeDefined();
+    expect(screen.queryByText(/재현 가능한 시연·검증용 고정 데이터/)).toBeNull();
+    live.unmount();
+
+    render(<App initialData={s7} />);
+    expect(s7.source_kind).toBe('FIXTURE');
     expect(screen.getByText(/재현 가능한 시연·검증용 고정 데이터/)).toBeDefined();
   });
 

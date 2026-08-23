@@ -24,7 +24,6 @@ STUB(`FixtureRouteProvider`)을 쓴다. 그래서 `source_kind`도 시나리오�
 
 from __future__ import annotations
 
-import json
 import os
 
 from fastapi import FastAPI, HTTPException, Query
@@ -40,30 +39,11 @@ from api.fixtures import (
     load_scenarios,
     load_validators,
 )
-from services.decision.adapters import signals_from
-from services.decision.decide import decide
-from services.decision.enums import Action, Profile, RouteStatus
-from services.decision.postprocess import apply, final_reasons, representative_code
-from services.decision.service_risk import classify
-from services.route.fixture_provider import FixtureRouteProvider
-from services.route.interface import RouteProvider
-from services.route.provider import (
-    provider_for as designated_provider_for,
-    route_request_from,
-)
+from services.decision.enums import Profile
+from services.pipeline import apply_engine, provider_for
 
 CONTRACT_VERSION = os.environ.get("MAREUNGIL_CONTRACT_VERSION", "v1")
 DEFAULT_SCENARIO = os.environ.get("MAREUNGIL_DEFAULT_SCENARIO", "DS-S1")
-
-#: 실제 경로 엔진으로 재현 가능한 시나리오. `DS-S7`·`DS-S8`은 시설 만석 서사가
-#: 진짜 엔진으로 재현되지 않아 픽스처 STUB(`FixtureRouteProvider`)에 남는다.
-#:
-#: `DS-S4`(고립 신고)는 **경로 엔진을 타지만 후보 비교를 하지 않는다** - `EMERGENCY`
-#: 는 `not_required()` 로 끝나므로 센서도 안전거점도 필요 없다. 그래서 가장 싸게
-#: LIVE 가 된다. 픽스처를 엔진 출력에 맞춰 썼기 때문에 여기 넣어도 응답 본문은
-#: 바뀌지 않는다 - 바뀌는 것은 STUB provider 가 박던 거짓 `_stub` 표시가 사라지는
-#: 것과 `source_kind` 가 사실을 말하게 되는 것 둘뿐이다.
-LIVE_SCENARIOS = {"DS-S1", "DS-S4", "DS-S6"}
 
 app = FastAPI(
     title="마른길 통합 API",
@@ -88,9 +68,9 @@ _scenarios = load_scenarios()
 _destinations = load_destinations()
 _points = {p["id"]: p for p in _destinations["points"]}
 _safe_points = load_safe_points()
-_fixture_route_provider = FixtureRouteProvider(
-    routes={sid: body["route"] for sid, body in _scenarios.items()}
-)
+#: 손으로 쓴 경로 블록. `DS-S7`·`DS-S8` 만 실제로 쓴다 — 나머지는 경로 엔진이
+#: 계산하므로 여기 있어도 무시된다.
+_fixture_routes = {sid: body["route"] for sid, body in _scenarios.items()}
 
 
 @app.get("/api/health")
@@ -148,80 +128,15 @@ def destinations() -> dict:
     }
 
 
-def route_source_of(scenario: str | None) -> str:
-    """그 시나리오의 경로가 실제 엔진에서 오는가 픽스처에서 오는가.
+def _engine(body: dict, profiles: list[str]) -> dict:
+    """이 저장소의 데이터로 조립 파이프라인을 부른다.
 
-    **한 곳에서만 정한다.** provider 를 고르는 일과 `source_kind` 를 적는 일이
-    각자 판단하면, 엔진을 태우면서 화면에는 `FIXTURE` 라고 적는 상태가 조용히
-    생긴다 - 응답이 자기 출처를 잘못 말하는 것이 가장 나쁜 실패다.
+    **조립 자체는 `services/pipeline` 이 한다.** 여기 남은 것은 "어떤 안전거점
+    목록과 어떤 픽스처 경로를 쓰는가" 뿐이다 — 픽스처 생성기가 같은 함수를
+    같은 데이터로 부르므로, 생성된 픽스처와 API 응답이 갈라질 수 없다.
     """
-    return "LIVE_PIPELINE" if scenario in LIVE_SCENARIOS else "FIXTURE"
-
-
-def provider_for(body: dict) -> RouteProvider:
-    """시나리오별로 실제 경로 엔진과 픽스처 STUB 을 가른다.
-
-    `LIVE_SCENARIOS`(`DS-S1`·`DS-S4`·`DS-S6`)만 `DesignatedPointRouteProvider`를
-    쓴다. 나머지(`DS-S7`·`DS-S8`)는 시설 만석 서사가 실제 엔진으로 재현되지 않아
-    픽스처 STUB 을 그대로 쓴다.
-
-    **두 갈래 모두 `solve(request)` 하나로 호출된다.** 예전에는 픽스처 쪽
-    시그니처가 `solve(request, scenario)` 라 여기서 함수 안에 클래스를 정의해
-    감쌌는데(`_BoundFixtureProvider`), 그 어긋남은 감사 10.3 이 지적한 결함이었고
-    지금은 `for_scenario()` 가 생성 시점에 시나리오를 묶어 해소한다.
-
-    **어느 시나리오가 LIVE 인지만 여기서 정한다.** 엔진을 만드는 일과 payload 를
-    `RouteRequest` 로 옮기는 일은 `services/route/provider.py` 가 한다 - 테스트가
-    같은 함수를 통과해야 하기 때문이다(C-21).
-    """
-    scenario = body.get("_scenario")
-    if route_source_of(scenario) == "LIVE_PIPELINE":
-        return designated_provider_for(body, _safe_points)
-
-    return _fixture_route_provider.for_scenario(scenario)
-
-
-def _apply_decision_engine(body: dict, profiles: list[str]) -> dict:
-    """RF 위험 -> classify() -> decide() -> 경로 엔진 -> apply() 로
-    decision·route 블록을 채운다.
-
-    `risk` 블록은 이미 실제 모델 출력이다. `route`도 `LIVE_SCENARIOS`에서는 실제
-    경로 엔진이 계산한다 - 후처리 규칙(`CONFIRMED_TRANSITIONS`·`CONFIRMED_HOLDS`)
-    은 그 결과의 `status`를 그대로 받는다.
-
-    `source_kind`는 `body["_scenario"]` 로 시나리오를 판별해 시나리오별로 갈린다.
-
-    `needs_route`는 계약(`assess_response.schema.json`의 allOf)이 **1차 행동
-    (`primary_action`) 기준**으로 강제한다 - 경로 후처리로 최종 행동이 바뀌어도
-    그대로다. 그래서 `post.action`이 아니라 `primary.needs_route`
-    (= `primary_action`에서 파생된 값)를 쓴다.
-    """
-    signals = signals_from(body)
-    risk_result = classify(signals)
-    primary = decide(signals)
-
-    route = provider_for(body).solve(route_request_from(body, primary.action, profiles))
-    post = apply(primary.action, RouteStatus(route["status"]))
-
-    # 대표 사유와 이유 목록은 같은 후처리 결과에서 나온다. 따로 만들면 배너와
-    # 목록이 서로 다른 말을 하게 된다 - `DS-S6` 가 실제로 그랬다.
-    reason_code = representative_code(primary.reasons, post)
-    reasons = final_reasons(primary.reasons, post)
-
-    out = json.loads(json.dumps(body))  # 원본 픽스처를 건드리지 않는다
-    out["route"] = route
-    out["decision"].pop("_stub", None)
-    out["decision"].update(
-        primary_action=primary.action.value,
-        action=post.action.value,
-        route_postprocess_applied=post.applied,
-        service_risk_level=risk_result.level.value,
-        needs_route=primary.needs_route,
-        reason_code=reason_code,
-        reasons=[r.as_dict() for r in reasons],
-    )
-    out["source_kind"] = route_source_of(body.get("_scenario"))
-    return out
+    provider = provider_for(body, _safe_points, _fixture_routes)
+    return apply_engine(body, profiles, provider)
 
 
 @app.get("/api/assess")
@@ -285,7 +200,7 @@ def assess(
         # 덮어쓴 것이다. 신고는 사용자만 만들고, 아무도 대신 지우지 않는다.
         body = apply_trapped(body)
 
-    body = _apply_decision_engine(body, profile)
+    body = _engine(body, profile)
 
     violations = contract_errors(_validators, body)
     if violations:

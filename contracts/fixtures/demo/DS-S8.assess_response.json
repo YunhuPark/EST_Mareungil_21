@@ -944,14 +944,7 @@
     }
   },
   "decision": {
-    "_stub": "우선순위 6(AI HIGH + 실외). services/decision 구현 전 손으로 적은 값이다.",
-    "primary_action": "EVACUATE",
-    "action": "EVACUATE",
-    "route_postprocess_applied": false,
-    "service_risk_level": "DANGER",
-    "needs_route": true,
     "next_check_at": null,
-    "reason_code": "ROUTE_NO_SAFE_POINT",
     "user_state": {
       "context": "OUTDOOR",
       "trapped": false,
@@ -964,12 +957,19 @@
         "lon": 127.0365
       }
     },
+    "policy_version": "policy-0.1.0-draft",
+    "primary_action": "EVACUATE",
+    "action": "EVACUATE",
+    "route_postprocess_applied": false,
+    "service_risk_level": "DANGER",
+    "needs_route": true,
+    "reason_code": "ROUTE_NO_SAFE_POINT",
     "reasons": [
       {
         "code": "AI_AREA_HIGH",
-        "text": "30분 뒤 지역 고수위 위험이 높게 예측됐습니다 (지역값 1.0).",
-        "value": 1.0,
-        "threshold": 0.5,
+        "text": "30분 뒤 지역 고수위 위험이 높게 예측됐습니다.",
+        "value": null,
+        "threshold": null,
         "basis": "AI_PREDICTION"
       },
       {
@@ -979,8 +979,7 @@
         "threshold": null,
         "basis": "TEAM_RULE"
       }
-    ],
-    "policy_version": "policy-0.1.0-draft"
+    ]
   },
   "official": {
     "source": "서울특별시 물순환안전국 공식 보고서 · 연합뉴스 · TBS · 서울시 미디어재단 · 강남구청 (원문 대조표: sources/2022-08-08_gangnam_verified_events.csv)",
@@ -1055,7 +1054,7 @@
   "_scenario": "DS-S8",
   "_why_this_moment": "M-32. 세 후보가 모두 시설 상태로 빠져 남은 후보가 없다. 무한 재검색이나 임의 목적지 생성을 하지 않고 NO_SAFE_POINT 를 돌려주며, M-15 에 따라 행동은 EVACUATE 를 유지하고 119 를 강조한다. EMERGENCY 로 바꾸지 않는다. DS-S7 과 같은 재생 시각의 두 갈래이며 시간 흐름이 아니다.",
   "_risk_source": "contracts/fixtures/risk_S3_peak.json (RF-S3) — 실제 모델 출력",
-  "_stub": "decision·route 블록은 STUB 이고 시설 상태는 합성값이다(M-24 DEMO_FIXTURE).",
+  "_stub": "route 블록과 시설 상태가 합성값이다(M-24 DEMO_FIXTURE). decision 은 엔진이 채운 값이다 — `NO_SAFE_POINT` 유지는 M-15 규칙이라 여기서 손으로 적지 않아도 apply() 가 같은 결과를 낸다.",
   "route": {
     "_stub": "services/route 미구현. 시설 상태는 합성값이다.",
     "status": "NO_SAFE_POINT",

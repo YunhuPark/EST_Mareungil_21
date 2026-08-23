@@ -24,7 +24,8 @@ import inspect
 
 import pytest
 
-from api.main import _scenarios, provider_for, route_source_of
+from api.main import _fixture_routes, _safe_points, _scenarios
+from services.pipeline import provider_for, route_source_of
 from services.route.fixture_provider import BoundFixtureRouteProvider, FixtureRouteProvider
 from services.route.interface import RouteProvider
 from services.route.provider import DesignatedPointRouteProvider
@@ -88,7 +89,7 @@ def test_실제_배선이_모든_시나리오에서_프로토콜을_지킨다():
     sources = set()
 
     for scenario, body in _scenarios.items():
-        provider = provider_for(body)
+        provider = provider_for(body, _safe_points, _fixture_routes)
         assert solve_params(provider) == PROTOCOL_PARAMS, f"{scenario} 의 provider"
         sources.add(route_source_of(body.get("_scenario")))
 
