@@ -294,12 +294,25 @@ G0 에서 픽스처 생성기를 갱신할 때 하도록 [DECISIONS.md](./DECISI
 `LIVE_PIPELINE` 작업량 추정을 좌우한다 — 등급 축은 새로 만들 것이 없고 붙이기만 하면 된다.
 10.1 이 숨어 있던 이유도 이것이다.
 
-### 10.3 `FixtureRouteProvider` 가 자기 프로토콜을 지키지 않는다
+### 10.3 `FixtureRouteProvider` 가 자기 프로토콜을 지키지 않는다 — **닫힘 (2026-08-23)**
 
 `interface.py` 의 `RouteProvider.solve(self, request)` 와
-`fixture_provider.py` 의 `solve(self, request, scenario)` 는 **인자 개수가 다르다.**
+`fixture_provider.py` 의 `solve(self, request, scenario)` 는 **인자 개수가 달랐다.**
 아무도 이 클래스를 인스턴스화하지 않고 Python 정적 검사도 없어서 **어떤 테스트도
-빨개지지 않는다.** 실제 경로 엔진을 이 프로토콜에 맞춰 쓰기 시작하면 첫 통합에서 만난다.
+빨개지지 않았다.** 예측대로 첫 통합에서 만났고, `api/main.py` 는 함수 안에 클래스를
+정의해(`_BoundFixtureProvider`) 그 차이를 메우고 있었다.
+
+**닫은 방식.** 등록부(`FixtureRouteProvider`)와 provider 를 나눴다. 등록부는
+시나리오 -> 경로만 들고 있고, `for_scenario()` 가 시나리오를 **생성 시점에** 묶어
+`solve(request)` 하나를 만족하는 `BoundFixtureRouteProvider` 를 돌려준다. 호출부의
+임시 어댑터 클래스는 사라졌다.
+
+**무엇이 이것을 다시 막나.** `tests/test_route_provider_protocol.py` 가
+`inspect.signature` 로 두 provider 와 프로토콜을 대조하고, `api/main.py` 의
+`provider_for()` 를 시나리오 전부에 통과시킨다. `isinstance` 를 쓰지 않는 이유는
+`runtime_checkable` 이 메서드 존재만 보고 시그니처는 보지 않기 때문이다 — 여기서
+어긋났던 것이 바로 시그니처다. 기본값을 준 인자(`scenario: str = ""`)를 되돌려
+붙여도 실패하는 것을 확인했다.
 
 ### 10.4 `vite preview` 가 API 에 도달하지 못한다
 

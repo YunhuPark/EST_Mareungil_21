@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,7 +46,7 @@ from services.decision.enums import Action, Profile, RouteStatus
 from services.decision.postprocess import apply, final_reasons, representative_code
 from services.decision.service_risk import classify
 from services.route.fixture_provider import FixtureRouteProvider
-from services.route.interface import RouteProvider, RouteRequest
+from services.route.interface import RouteProvider
 from services.route.provider import (
     provider_for as designated_provider_for,
     route_request_from,
@@ -149,28 +148,37 @@ def destinations() -> dict:
     }
 
 
+def route_source_of(scenario: str | None) -> str:
+    """그 시나리오의 경로가 실제 엔진에서 오는가 픽스처에서 오는가.
+
+    **한 곳에서만 정한다.** provider 를 고르는 일과 `source_kind` 를 적는 일이
+    각자 판단하면, 엔진을 태우면서 화면에는 `FIXTURE` 라고 적는 상태가 조용히
+    생긴다 - 응답이 자기 출처를 잘못 말하는 것이 가장 나쁜 실패다.
+    """
+    return "LIVE_PIPELINE" if scenario in LIVE_SCENARIOS else "FIXTURE"
+
+
 def provider_for(body: dict) -> RouteProvider:
     """시나리오별로 실제 경로 엔진과 픽스처 STUB 을 가른다.
 
-    `LIVE_SCENARIOS`(`DS-S1`·`DS-S6`)만 `DesignatedPointRouteProvider`를 쓴다.
-    나머지(`DS-S7`·`DS-S8`)는 시설 만석 서사가 실제 엔진으로 재현되지 않아 픽스처
-    STUB 을 그대로 쓴다. `FixtureRouteProvider.solve()`는 `scenario` 인자가 하나
-    더 필요해서 시그니처가 다르므로, 여기서 얇게 감싸 두 provider가 같은
-    `solve(request)` 하나로 호출되게 맞춘다.
+    `LIVE_SCENARIOS`(`DS-S1`·`DS-S4`·`DS-S6`)만 `DesignatedPointRouteProvider`를
+    쓴다. 나머지(`DS-S7`·`DS-S8`)는 시설 만석 서사가 실제 엔진으로 재현되지 않아
+    픽스처 STUB 을 그대로 쓴다.
+
+    **두 갈래 모두 `solve(request)` 하나로 호출된다.** 예전에는 픽스처 쪽
+    시그니처가 `solve(request, scenario)` 라 여기서 함수 안에 클래스를 정의해
+    감쌌는데(`_BoundFixtureProvider`), 그 어긋남은 감사 10.3 이 지적한 결함이었고
+    지금은 `for_scenario()` 가 생성 시점에 시나리오를 묶어 해소한다.
 
     **어느 시나리오가 LIVE 인지만 여기서 정한다.** 엔진을 만드는 일과 payload 를
     `RouteRequest` 로 옮기는 일은 `services/route/provider.py` 가 한다 - 테스트가
     같은 함수를 통과해야 하기 때문이다(C-21).
     """
     scenario = body.get("_scenario")
-    if scenario in LIVE_SCENARIOS:
+    if route_source_of(scenario) == "LIVE_PIPELINE":
         return designated_provider_for(body, _safe_points)
 
-    class _BoundFixtureProvider:
-        def solve(self, request: RouteRequest) -> dict[str, Any]:
-            return _fixture_route_provider.solve(request, scenario)
-
-    return _BoundFixtureProvider()
+    return _fixture_route_provider.for_scenario(scenario)
 
 
 def _apply_decision_engine(body: dict, profiles: list[str]) -> dict:
@@ -212,7 +220,7 @@ def _apply_decision_engine(body: dict, profiles: list[str]) -> dict:
         reason_code=reason_code,
         reasons=[r.as_dict() for r in reasons],
     )
-    out["source_kind"] = "LIVE_PIPELINE" if body.get("_scenario") in LIVE_SCENARIOS else "FIXTURE"
+    out["source_kind"] = route_source_of(body.get("_scenario"))
     return out
 
 
