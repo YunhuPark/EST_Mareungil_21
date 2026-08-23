@@ -24,11 +24,10 @@ STUB(`FixtureRouteProvider`)을 쓴다. 그래서 `source_kind`도 시나리오�
 
 from __future__ import annotations
 
-import json
+import logging
 import os
-from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.fixtures import (
@@ -41,30 +40,55 @@ from api.fixtures import (
     load_scenarios,
     load_validators,
 )
-from services.decision.adapters import signals_from
-from services.decision.decide import decide
-from services.decision.enums import Action, Profile, RouteStatus
-from services.decision.postprocess import apply, final_reasons, representative_code
-from services.decision.service_risk import classify
-from services.route.fixture_provider import FixtureRouteProvider
-from services.route.interface import RouteProvider, RouteRequest
-from services.route.provider import (
-    provider_for as designated_provider_for,
-    route_request_from,
-)
+from api.ratelimit import RateLimitMiddleware, TokenBucketLimiter
+from services.decision.enums import Profile
+from services.pipeline import apply_engine, provider_for
+
+logger = logging.getLogger("mareungil.api")
 
 CONTRACT_VERSION = os.environ.get("MAREUNGIL_CONTRACT_VERSION", "v1")
 DEFAULT_SCENARIO = os.environ.get("MAREUNGIL_DEFAULT_SCENARIO", "DS-S1")
 
-#: 실제 경로 엔진으로 재현 가능한 시나리오. `DS-S7`·`DS-S8`은 시설 만석 서사가
-#: 진짜 엔진으로 재현되지 않아 픽스처 STUB(`FixtureRouteProvider`)에 남는다.
+#: 배포 환경. `production` 이면 대화형 문서(`/docs`·`/redoc`·`/openapi.json`)를 닫는다.
+#: 개발에서는 그대로 열어 둔다 — 이 파일 맨 위가 안내하는 그 문서다.
+IS_PRODUCTION = os.environ.get("MAREUNGIL_ENV", "development").strip().lower() == "production"
+
+#: 브라우저에서 이 API 를 부를 수 있는 출처. **기본값은 로컬 개발 주소뿐이다.**
 #:
-#: `DS-S4`(고립 신고)는 **경로 엔진을 타지만 후보 비교를 하지 않는다** - `EMERGENCY`
-#: 는 `not_required()` 로 끝나므로 센서도 안전거점도 필요 없다. 그래서 가장 싸게
-#: LIVE 가 된다. 픽스처를 엔진 출력에 맞춰 썼기 때문에 여기 넣어도 응답 본문은
-#: 바뀌지 않는다 - 바뀌는 것은 STUB provider 가 박던 거짓 `_stub` 표시가 사라지는
-#: 것과 `source_kind` 가 사실을 말하게 되는 것 둘뿐이다.
-LIVE_SCENARIOS = {"DS-S1", "DS-S4", "DS-S6"}
+#: 예전에는 `["*"]` 을 박아 두고 바로 옆에 "데모는 로컬 전용"이라고 적어 두었는데,
+#: `render.yaml` 로 배포한 순간 그 주석이 사실이 아니게 됐다. 자격증명을 싣지 않으니
+#: 훔쳐갈 세션은 없지만, **허용 출처는 코드가 아니라 배포 설정이 정하는 값이다.**
+#:
+#:     MAREUNGIL_CORS_ORIGINS=https://mareungil.vercel.app
+#:     MAREUNGIL_CORS_ORIGIN_REGEX=https://mareungil-.*\.vercel\.app   # 프리뷰 배포
+#:
+#: 정말 전부 열어야 하면 `MAREUNGIL_CORS_ORIGINS=*` 로 **명시해서** 연다. 기본값에
+#: 숨어 있는 것과 배포 설정에 적혀 있는 것은 다른 상태다.
+DEFAULT_CORS_ORIGINS = (
+    "http://127.0.0.1:5173,http://localhost:5173,"
+    "http://127.0.0.1:4173,http://localhost:4173"
+)
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("MAREUNGIL_CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
+CORS_ORIGIN_REGEX = os.environ.get("MAREUNGIL_CORS_ORIGIN_REGEX") or None
+
+#: 한 IP 가 `MAREUNGIL_RATE_WINDOW_SEC` 초 동안 보낼 수 있는 요청 수. `0` 이면 끈다.
+#:
+#: 기본값 60회/60초는 **사람이 쓰다가 걸릴 일이 없는 값**으로 잡았다. 화면 하나가
+#: 움직일 때 API 를 세 번 부르므로 분당 20번 조작해야 닿는다. 막으려는 것은 사용자가
+#: 아니라 초당 수십 번 두드리는 쪽이다.
+RATE_LIMIT = int(os.environ.get("MAREUNGIL_RATE_LIMIT", "60"))
+RATE_WINDOW_SEC = float(os.environ.get("MAREUNGIL_RATE_WINDOW_SEC", "60"))
+
+#: 앞에 둔 **신뢰하는** 프록시 단수. 0 이면 `X-Forwarded-For` 를 아예 믿지 않는다.
+#:
+#: Render 처럼 프록시 뒤에 놓을 때만 1 로 준다(`render.yaml`). 틀리게 크게 잡으면
+#: 클라이언트가 적어 보낸 값을 믿게 되어 한도를 우회당하고, 프록시 뒤인데 0 으로
+#: 두면 모든 요청이 프록시 IP 하나로 뭉쳐 서로의 한도를 갉아먹는다.
+TRUSTED_PROXY_HOPS = int(os.environ.get("MAREUNGIL_TRUSTED_PROXY_HOPS", "0"))
 
 app = FastAPI(
     title="마른길 통합 API",
@@ -74,24 +98,87 @@ app = FastAPI(
         "위험·행동 판정은 실제 엔진이 계산하고, 경로는 시나리오에 따라 실제 엔진과 "
         "픽스처로 갈린다. 어느 쪽인지는 응답의 source_kind 필드가 시나리오마다 밝힌다."
     ),
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
 )
 
-# 프론트 개발 서버(Vite)에서 직접 호출할 수 있게 열어둔다. 데모는 로컬 전용이다.
+# --- 미들웨어 -----------------------------------------------------------------
+#
+# **나중에 add 한 것이 바깥에 선다**(Starlette). 그래서 아래 순서는 이렇게 감싼다:
+#
+#     security_headers  ->  CORS  ->  RateLimit  ->  앱
+#
+# 빈도 제한을 CORS 안쪽에 두는 이유가 있다. 429 응답에도 CORS 헤더가 붙어야
+# 브라우저가 그것을 "요청이 잦다"로 읽는다. 바깥에 두면 화면에는 정체불명의
+# CORS 오류만 뜨고 진짜 이유가 사라진다.
+
+if RATE_LIMIT > 0:
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=TokenBucketLimiter(RATE_LIMIT, RATE_WINDOW_SEC),
+        trusted_hops=TRUSTED_PROXY_HOPS,
+    )
+
+# 프론트(Vite 개발 서버·배포된 웹)에서 직접 호출할 수 있게 열어둔다.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+#: 모든 응답에 붙이는 방어 헤더.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "no-referrer",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next) -> Response:
+    """스니핑·클릭재킹·리퍼러 유출을 막는 헤더를 붙인다.
+
+    `/api/*` 에는 CSP 까지 건다 — 이 API 는 JSON 밖에 돌려주지 않으므로 무엇도
+    불러올 필요가 없고 프레임에 실릴 이유도 없다. 문서 페이지(`/docs`)에는 걸지
+    않는다. Swagger UI 가 CDN 스크립트를 쓰므로 같은 CSP 를 걸면 빈 화면이 된다.
+    """
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    if request.url.path.startswith("/api/"):
+        response.headers.setdefault(
+            "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+        )
+    return response
+
+
+#: 오류 메시지에 사용자 입력을 되비칠 때의 길이 상한.
+ECHO_LIMIT = 64
+
+
+def _echo(value: str) -> str:
+    """사용자 입력을 오류 메시지에 넣기 전에 자른다.
+
+    자르지 않으면 5만 자를 보낸 요청이 5만 자를 그대로 돌려받는다 — 서버가 남의
+    입력을 증폭해 주는 셈이다. 무엇을 잘못 보냈는지 알려주는 데 64자면 충분하다.
+    """
+    text = str(value)
+    if len(text) <= ECHO_LIMIT:
+        return text
+    return f"{text[:ECHO_LIMIT]}…(총 {len(text)}자)"
+
 
 _validators = load_validators()
 _scenarios = load_scenarios()
 _destinations = load_destinations()
 _points = {p["id"]: p for p in _destinations["points"]}
 _safe_points = load_safe_points()
-_fixture_route_provider = FixtureRouteProvider(
-    routes={sid: body["route"] for sid, body in _scenarios.items()}
-)
+#: 손으로 쓴 경로 블록. `DS-S7`·`DS-S8` 만 실제로 쓴다 — 나머지는 경로 엔진이
+#: 계산하므로 여기 있어도 무시된다.
+_fixture_routes = {sid: body["route"] for sid, body in _scenarios.items()}
 
 
 @app.get("/api/health")
@@ -149,71 +236,15 @@ def destinations() -> dict:
     }
 
 
-def provider_for(body: dict) -> RouteProvider:
-    """시나리오별로 실제 경로 엔진과 픽스처 STUB 을 가른다.
+def _engine(body: dict, profiles: list[str]) -> dict:
+    """이 저장소의 데이터로 조립 파이프라인을 부른다.
 
-    `LIVE_SCENARIOS`(`DS-S1`·`DS-S6`)만 `DesignatedPointRouteProvider`를 쓴다.
-    나머지(`DS-S7`·`DS-S8`)는 시설 만석 서사가 실제 엔진으로 재현되지 않아 픽스처
-    STUB 을 그대로 쓴다. `FixtureRouteProvider.solve()`는 `scenario` 인자가 하나
-    더 필요해서 시그니처가 다르므로, 여기서 얇게 감싸 두 provider가 같은
-    `solve(request)` 하나로 호출되게 맞춘다.
-
-    **어느 시나리오가 LIVE 인지만 여기서 정한다.** 엔진을 만드는 일과 payload 를
-    `RouteRequest` 로 옮기는 일은 `services/route/provider.py` 가 한다 - 테스트가
-    같은 함수를 통과해야 하기 때문이다(C-21).
+    **조립 자체는 `services/pipeline` 이 한다.** 여기 남은 것은 "어떤 안전거점
+    목록과 어떤 픽스처 경로를 쓰는가" 뿐이다 — 픽스처 생성기가 같은 함수를
+    같은 데이터로 부르므로, 생성된 픽스처와 API 응답이 갈라질 수 없다.
     """
-    scenario = body.get("_scenario")
-    if scenario in LIVE_SCENARIOS:
-        return designated_provider_for(body, _safe_points)
-
-    class _BoundFixtureProvider:
-        def solve(self, request: RouteRequest) -> dict[str, Any]:
-            return _fixture_route_provider.solve(request, scenario)
-
-    return _BoundFixtureProvider()
-
-
-def _apply_decision_engine(body: dict, profiles: list[str]) -> dict:
-    """RF 위험 -> classify() -> decide() -> 경로 엔진 -> apply() 로
-    decision·route 블록을 채운다.
-
-    `risk` 블록은 이미 실제 모델 출력이다. `route`도 `LIVE_SCENARIOS`에서는 실제
-    경로 엔진이 계산한다 - 후처리 규칙(`CONFIRMED_TRANSITIONS`·`CONFIRMED_HOLDS`)
-    은 그 결과의 `status`를 그대로 받는다.
-
-    `source_kind`는 `body["_scenario"]` 로 시나리오를 판별해 시나리오별로 갈린다.
-
-    `needs_route`는 계약(`assess_response.schema.json`의 allOf)이 **1차 행동
-    (`primary_action`) 기준**으로 강제한다 - 경로 후처리로 최종 행동이 바뀌어도
-    그대로다. 그래서 `post.action`이 아니라 `primary.needs_route`
-    (= `primary_action`에서 파생된 값)를 쓴다.
-    """
-    signals = signals_from(body)
-    risk_result = classify(signals)
-    primary = decide(signals)
-
-    route = provider_for(body).solve(route_request_from(body, primary.action, profiles))
-    post = apply(primary.action, RouteStatus(route["status"]))
-
-    # 대표 사유와 이유 목록은 같은 후처리 결과에서 나온다. 따로 만들면 배너와
-    # 목록이 서로 다른 말을 하게 된다 - `DS-S6` 가 실제로 그랬다.
-    reason_code = representative_code(primary.reasons, post)
-    reasons = final_reasons(primary.reasons, post)
-
-    out = json.loads(json.dumps(body))  # 원본 픽스처를 건드리지 않는다
-    out["route"] = route
-    out["decision"].pop("_stub", None)
-    out["decision"].update(
-        primary_action=primary.action.value,
-        action=post.action.value,
-        route_postprocess_applied=post.applied,
-        service_risk_level=risk_result.level.value,
-        needs_route=primary.needs_route,
-        reason_code=reason_code,
-        reasons=[r.as_dict() for r in reasons],
-    )
-    out["source_kind"] = "LIVE_PIPELINE" if body.get("_scenario") in LIVE_SCENARIOS else "FIXTURE"
-    return out
+    provider = provider_for(body, _safe_points, _fixture_routes)
+    return apply_engine(body, profiles, provider)
 
 
 @app.get("/api/assess")
@@ -246,7 +277,7 @@ def assess(
     if body is None:
         raise HTTPException(
             404,
-            f"시나리오 {scenario} 가 없다. 사용 가능: {sorted(_scenarios)}",
+            f"시나리오 {_echo(scenario)} 가 없다. 사용 가능: {sorted(_scenarios)}",
         )
 
     if destination is not None:
@@ -255,7 +286,7 @@ def assess(
             # RT-14/RT-15. 목록 밖 지점은 애초에 받지 않는다.
             raise HTTPException(
                 400,
-                f"지정 지점 목록에 없는 목적지 {destination}. 사용 가능: {sorted(_points)}",
+                f"지정 지점 목록에 없는 목적지 {_echo(destination)}. 사용 가능: {sorted(_points)}",
             )
         body = apply_destination(body, point)
 
@@ -266,9 +297,14 @@ def assess(
         if unknown:
             raise HTTPException(
                 400,
-                f"MVP 가 지원하지 않는 프로필 {unknown}. "
+                f"MVP 가 지원하지 않는 프로필 {[_echo(p) for p in unknown[:5]]}. "
                 f"사용 가능: {sorted(m.value for m in Profile)}",
             )
+        # 계약은 프로필을 집합으로 본다(`uniqueItems`). 중복을 그대로 흘리면 아래
+        # 계약 검증이 500 을 내는데, 그것이야말로 이 블록이 막으려던 상황이다 —
+        # `?profile=ELDERLY&profile=ELDERLY` 한 번이면 사용자 입력 오류가 서버
+        # 오류로 보고된다. 고른 순서는 유지한 채 중복만 걷어낸다.
+        profile = list(dict.fromkeys(profile))
         body = apply_profiles(body, profile)
 
     if trapped:
@@ -277,10 +313,17 @@ def assess(
         # 덮어쓴 것이다. 신고는 사용자만 만들고, 아무도 대신 지우지 않는다.
         body = apply_trapped(body)
 
-    body = _apply_decision_engine(body, profile)
+    body = _engine(body, profile)
 
     violations = contract_errors(_validators, body)
     if violations:
-        raise HTTPException(500, {"contract_violations": violations[:10]})
+        # 계약 위반은 **서버 잘못이다.** 무엇이 어긋났는지는 로그에 남기고 클라이언트
+        # 에는 스키마 경로를 주지 않는다 — 내부 구조를 그대로 읽어주는 응답은 정찰에
+        # 쓰인다. 개발 중에는 서버 콘솔에서 같은 내용을 그대로 본다.
+        logger.error(
+            "계약 위반 (scenario=%s, destination=%s, profiles=%s): %s",
+            scenario, destination, profile, violations[:10],
+        )
+        raise HTTPException(500, "응답이 내부 계약을 어겼다. 서버 로그를 확인하라.")
 
     return body

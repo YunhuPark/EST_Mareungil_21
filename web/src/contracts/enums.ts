@@ -272,3 +272,25 @@ export const SENSOR_LAYER_EMPTY = '이 시각에는 범위 안에 판단할 센�
 
 /** 판단 범위 원의 설명. 좌표·반경은 contracts/destinations.json 이 정본이다. */
 export const AREA_SCOPE_NOTE = '지역 위험을 판단하는 범위입니다.';
+
+/**
+ * 지도 도형의 한계 문구 — **도형 하나당 하나씩 반드시 있다.**
+ *
+ * `map/features.ts` 의 `MapFeature.limit` 이 필수 필드라 문구 없이 도형을 만들
+ * 수 없고, `map/features.test.ts` 가 비어 있지 않은지 확인한다.
+ *
+ * 이 규칙을 만든 이유가 있다. 예전에 선 스타일만 바꾼 커밋이 아래
+ * `CANDIDATE_LINE_LIMIT` 에 해당하는 문구를 지웠는데, 그 문구는 leaflet 팝업
+ * 문자열이라 jsdom 에 보이지 않아 **어떤 테스트도 빨개지지 않았다.** 사람이 눈으로
+ * 발견해 되살렸다. 금칙어 검사(`tests/test_forbidden_wording.py`)가 쓰면 안 되는
+ * 말을 막는다면, 이쪽은 **반드시 있어야 하는 말**을 지킨다.
+ */
+
+/** 현재 위치 표식. 단말이 측정한 좌표가 아니라 재생 시나리오의 좌표다. */
+export const ORIGIN_LIMIT = '재생 시나리오가 정한 위치이며 단말이 측정한 좌표가 아닙니다.';
+
+/** 도달 대상 표식. RT-14 — 목록 등재가 안전 보장이 아니다. */
+export const TARGET_LIMIT = '목록에 있다는 사실이 안전을 보장하지 않습니다.';
+
+/** RT-02 · M-22. 후보를 잇는 직선. 확인되지 않은 길을 당시 경로처럼 표현하지 않는다. */
+export const CANDIDATE_LINE_LIMIT = '추천 후보 경로 (직선 표시 · 실제 경로 아님)';

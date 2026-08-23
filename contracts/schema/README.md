@@ -39,7 +39,7 @@ JSON Schema **Draft 2020-12**. 이 디렉터리가 모든 enum·필드의 **정�
 스키마로 검사할 수 없고, `COMPOSED_BLOCKS` 에 넣지 않는다.
 
 대신 `contracts/fixtures/decision/` 의 독립 픽스처로 검증한다. 두 스키마의 차이가
-의도된 것인지는 [DECISIONS.md](../../docs/DECISIONS.md) 2.1 절의 표가 기록한다.
+의도된 것인지는 `DECISIONS.md` 2.1 절의 표가 기록한다.
 
 ## 이 스키마들이 실제로 막는 것
 
@@ -68,7 +68,7 @@ JSON Schema **Draft 2020-12**. 이 디렉터리가 모든 enum·필드의 **정�
 
 `EVACUATE` 경로 실패, `MOVE + DESTINATION_BLOCKED`, `MOVE + DATA_UNAVAILABLE` 의
 **최종 행동은 강제하지 않는다.** 안전정책이 아직 `OPEN` 이기 때문이다
-([DECISIONS.md](../../docs/DECISIONS.md) O-02~O-05).
+(`DECISIONS.md` O-02~O-05).
 
 스키마가 값을 강제하면 그게 곧 정책 확정이 된다. 정하지 않은 것은 비워 둔다.
 
@@ -87,7 +87,7 @@ JSON Schema **Draft 2020-12**. 이 디렉터리가 모든 enum·필드의 **정�
 1. **먼저 기존 스키마를 읽는다.** 통째로 교체하지 않는다.
 2. 기존 픽스처가 깨지는지 확인한다 — `.\make.ps1 contracts`
 3. 네 곳을 **같은 커밋에서** 고친다: 스키마 · 픽스처 · 테스트 · `web/src/contracts/`
-4. [DECISIONS.md](../../docs/DECISIONS.md) 에 한 줄 남긴다
+4. `DECISIONS.md` 에 한 줄 남긴다
 5. **enum 과 `required` 변경은 G3 이후 금지**
 
 ### 하위호환을 위해 남겨둔 것

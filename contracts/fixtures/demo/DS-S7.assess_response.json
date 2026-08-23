@@ -944,14 +944,7 @@
     }
   },
   "decision": {
-    "_stub": "우선순위 6(AI HIGH + 실외). services/decision 구현 전 손으로 적은 값이다.",
-    "primary_action": "EVACUATE",
-    "action": "EVACUATE",
-    "route_postprocess_applied": false,
-    "service_risk_level": "DANGER",
-    "needs_route": true,
     "next_check_at": null,
-    "reason_code": "AI_AREA_HIGH",
     "user_state": {
       "context": "OUTDOOR",
       "trapped": false,
@@ -964,23 +957,22 @@
         "lon": 127.0365
       }
     },
+    "policy_version": "policy-0.1.0-draft",
+    "primary_action": "EVACUATE",
+    "action": "EVACUATE",
+    "route_postprocess_applied": false,
+    "service_risk_level": "DANGER",
+    "needs_route": true,
+    "reason_code": "AI_AREA_HIGH",
     "reasons": [
       {
         "code": "AI_AREA_HIGH",
-        "text": "30분 뒤 지역 고수위 위험이 높게 예측됐습니다 (지역값 1.0).",
-        "value": 1.0,
-        "threshold": 0.5,
+        "text": "30분 뒤 지역 고수위 위험이 높게 예측됐습니다.",
+        "value": null,
+        "threshold": null,
         "basis": "AI_PREDICTION"
-      },
-      {
-        "code": "RAIN_60M_OVER_TH02",
-        "text": "60분 누적 강우가 팀 기준값을 넘었습니다.",
-        "value": 84.5,
-        "threshold": 40.0,
-        "basis": "TEAM_RULE"
       }
-    ],
-    "policy_version": "policy-0.1.0-draft"
+    ]
   },
   "official": {
     "source": "서울특별시 물순환안전국 공식 보고서 · 연합뉴스 · TBS · 서울시 미디어재단 · 강남구청 (원문 대조표: sources/2022-08-08_gangnam_verified_events.csv)",
@@ -1055,7 +1047,7 @@
   "_scenario": "DS-S7",
   "_why_this_moment": "M-32. 1순위 시설이 만석으로 확인돼 후보에서 빠지고 2순위로 넘어간다. 행동은 EVACUATE 그대로이고 바뀌는 것은 도달 대상뿐이다. DS-S8 과 **같은 재생 시각의 두 갈래**다 - 시설 상태 시계열이 없으므로 시간 흐름이 아니라 상태 차이로 보여준다.",
   "_risk_source": "contracts/fixtures/risk_S3_peak.json (RF-S3) — 실제 모델 출력",
-  "_stub": "decision·route 블록은 STUB 이고 시설 상태는 합성값이다(M-24 DEMO_FIXTURE). 시설상태 연동이 아니며 저장소에 대피시설 원자료가 없다.",
+  "_stub": "route 블록과 시설 상태가 합성값이다(M-24 DEMO_FIXTURE). 시설상태 연동이 아니며 저장소에 대피시설 원자료가 없다. decision 은 엔진이 채운 값이다.",
   "route": {
     "_stub": "services/route 미구현. 시설 상태는 합성값이다.",
     "status": "FALLBACK_CANDIDATE",

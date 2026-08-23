@@ -7,12 +7,23 @@
 기존 RF-* 위험 픽스처(**실제 모델 출력**)를 `risk` 블록으로 그대로 싣고, 그 위에
 `decision` / `route` 블록을 얹어 UI 가 받는 `AssessResponse` 를 만든다.
 
-무엇을 하지 않는가
-------------------
-`decision` 과 `route` 는 **아직 STUB 이다.** 판단 엔진(services/decision)과 경로
-엔진(services/route)이 붙기 전까지 손으로 적은 값이며, 응답의
-`source_kind: "FIXTURE"` 와 각 블록의 `_stub` 필드가 그 사실을 표시한다.
-확률·센서 값만 실제 모델 출력이고 행동·경로는 아직 모델이 만든 것이 아니다.
+`decision` 과 `route` 를 손으로 적지 않는다
+-------------------------------------------
+**두 블록은 `services/pipeline.apply_engine()` 이 채운다.** `api/main.py` 가
+응답을 조립할 때 부르는 바로 그 함수이며, 같은 입력에 같은 안전거점 목록을 준다.
+그래서 이 스크립트가 만든 파일과 실제 API 응답이 갈라질 수 없다.
+
+예전에는 갈라져 있었다. `DS-S1` 픽스처는 근거 3줄과 후보 목록이 실린 풍성한
+`decision`·`route` 를 들고 있었지만, `api/main.py` 는 그것을 통째로 덮어쓰고
+근거 1줄짜리 응답을 내보냈다. 픽스처를 읽는 사람과 화면을 보는 사람이 서로 다른
+값을 보고 있었고, 프론트 테스트는 **API 가 내보내지 않는 형태**를 검증하고 있었다.
+
+여전히 손으로 적는 것 — `DS-S7`·`DS-S8` 의 `route`
+----------------------------------------------------
+시설 만석·폐쇄 서사는 실제 엔진으로 재현되지 않는다(M-32). 저장소에 대피시설
+운영상태 원자료가 없기 때문이다. 그 둘만 손으로 쓴 경로 블록을
+`FixtureRouteProvider` 에 넘기며, 응답의 `source_kind: "FIXTURE"` 와 `_stub` 이
+그 사실을 표시한다. 나머지 셋은 `LIVE_PIPELINE` 이다.
 
 의존성: 표준 라이브러리만 쓴다(앱 .venv 에서 바로 돌아간다).
 """
@@ -36,6 +47,9 @@ from services.decision import visible_at
 from services.decision.enums import Action, RouteStatus
 from services.decision.postprocess import CONFIRMED_HOLDS
 
+# 조립은 API 와 **같은 함수**가 한다. 여기서 다시 구현하면 두 벌이 된다.
+from services.pipeline import apply_engine, provider_for
+
 FIXTURES = ROOT / "contracts" / "fixtures"
 OUT_DIR = FIXTURES / "demo"
 
@@ -52,6 +66,28 @@ CONTRACT_VERSION = "v1"
 
 def load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+#: C-32. `EVACUATE` 후보 비교에 쓰는 안전거점 7곳. `api/main.py` 가 읽는 파일과 같다.
+SAFE_POINTS = load(ROOT / "contracts" / "safe_points.json")["points"]
+
+
+def finish(response: dict, fixture_route: dict | None = None) -> dict:
+    """엔진을 태워 `decision`·`route` 를 채운다.
+
+    **이 함수를 거치지 않고 행동·등급·근거·경로를 적지 않는다.** 손으로 적으면
+    그 순간 정본이 둘이 되고, 둘이 어긋나도 화면은 API 쪽만 보여주므로 아무도
+    모른다 — 저장소가 실제로 그렇게 당했다.
+
+    Args:
+        response: 입력만 채운 payload. `decision` 에는 `user_state` ·
+            `next_check_at` · `policy_version` 만 들어 있어야 한다.
+        fixture_route: 엔진이 재현하지 못하는 서사를 손으로 쓴 `SafeRoute`.
+            `DS-S7`·`DS-S8` 의 시설 상태 전환뿐이다(M-32). LIVE 시나리오는 None.
+    """
+    scenario = response["_scenario"]
+    routes = {scenario: fixture_route} if fixture_route is not None else {}
+    return apply_engine(response, [], provider_for(response, SAFE_POINTS, routes))
 
 
 #: M-08. 신선도 단계는 둘뿐이다. 20분 단계는 회의에서 삭제했다.
@@ -154,18 +190,20 @@ def build_ds_s1() -> dict:
     risk 블록은 RF-S1(2022-08-08 11:00, 실제 모델 출력)을 그대로 쓴다.
     """
     risk = load(FIXTURES / "risk_S1_calm.json")
-    area = apply_area_risk(risk)
-    prob = area["risk_probability"]
+    apply_area_risk(risk)  # risk 블록에 area_risk 를 채운다. 반환값은 쓰지 않는다.
 
     destinations = load(ROOT / "contracts" / "destinations.json")
     destination = next(p for p in destinations["points"] if p["id"] == "GN-003")
     dest = {k: destination[k] for k in ("id", "label", "lat", "lon")}
 
-    return {
+    return finish({
         "_scenario": "DS-S1",
         "_why_this_moment": "평온, 데이터 정상. 행동 우선순위 1~9 에 걸리는 조건이 없어 기본값 MOVE 로 떨어진다.",
         "_risk_source": "contracts/fixtures/risk_S1_calm.json (RF-S1) — 실제 모델 출력",
-        "_stub": "decision·route 블록은 STUB 이다. 판단 엔진·경로 엔진 미구현 구간을 손으로 채운 값이며 모델이 만든 값이 아니다.",
+        "_engine": (
+            "decision·route 는 services/pipeline.apply_engine() 이 채운 값이다. "
+            "api/main.py 가 응답을 조립할 때 부르는 그 함수이며 손으로 적은 값이 아니다."
+        ),
 
         "contract_version": CONTRACT_VERSION,
         "source_kind": "FIXTURE",
@@ -182,14 +220,8 @@ def build_ds_s1() -> dict:
         "risk": risk,
 
         "decision": {
-            "_stub": "우선순위 10(그 외) 기본값. services/decision 구현 전 손으로 적은 값이다.",
-            "primary_action": "MOVE",
-            "action": "MOVE",
-            "route_postprocess_applied": False,
-            "service_risk_level": "SAFE",
-            "needs_route": True,
+            # 행동·등급·근거는 finish() 가 채운다. 여기 적는 것은 **입력**뿐이다.
             "next_check_at": "2022-08-08T11:30:00+09:00",
-            "reason_code": "NO_TRIGGER",
             "user_state": {
                 "context": "OUTDOOR",
                 "trapped": False,
@@ -197,77 +229,7 @@ def build_ds_s1() -> dict:
                 "profiles": [],
                 "destination": dest,
             },
-            "reasons": [
-                {
-                    "code": "AI_AREA_LOW",
-                    "text": f"30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 {prob}).",
-                    "value": prob,
-                    # 지역 임계(TH-04)와 비교한 값이다. model.threshold(0.33)는
-                    # 센서 단위 임계라 여기 쓰면 축이 어긋난다.
-                    "threshold": area_risk.AREA_THRESHOLD,
-                    "basis": "AI_PREDICTION",
-                },
-                {
-                    "code": "RAIN_BELOW_THRESHOLD",
-                    "text": "10분 강우와 60분 누적 강우가 모두 팀 기준값 아래입니다.",
-                    "value": 0.0,
-                    "threshold": "10분 5mm 또는 60분 40mm",
-                    "basis": "TEAM_RULE",
-                },
-                {
-                    "code": "NO_OFFICIAL_ORDER",
-                    "text": "이 시각 기준 공식 대피 지시가 없습니다.",
-                    "value": None,
-                    "threshold": None,
-                    "basis": "OFFICIAL_GUIDANCE",
-                },
-            ],
             "policy_version": POLICY_VERSION,
-        },
-
-        "route": {
-            "_stub": "services/route 미구현. 후보 비교 결과가 아니라 형식을 보여주는 자리표시자다.",
-            "status": "FALLBACK_CANDIDATE",
-            "route_verified": False,
-            "route_target": "USER_DESTINATION",
-            "target": {
-                "kind": "DESTINATION_POINT",
-                "id": dest["id"],
-                "label": dest["label"],
-                "lat": dest["lat"],
-                "lon": dest["lon"],
-                "reason": "사용자가 고른 목적지",
-                "data_asof": risk["asof"],
-            },
-            "route_attempted": True,
-            "no_safe_route": False,
-            "distance_m": 840,
-            "eta_sec": 720,
-            "detour_ratio": 1.0,
-            "candidates": [
-                {
-                    "route_id": "OFR-07",
-                    "label": "테헤란로 북측 보도",
-                    "rank": 1,
-                    "relative_risk": 0.08,
-                    "distance_m": 840,
-                    "excluded": False,
-                    "excluded_by": None,
-                },
-                {
-                    "route_id": "OFR-12",
-                    "label": "역삼로 방면",
-                    "rank": 2,
-                    "relative_risk": 0.14,
-                    "distance_m": 910,
-                    "excluded": False,
-                    "excluded_by": None,
-                },
-            ],
-            "hazards": [],
-            "profile_applied": [],
-            "limit": ROUTE_LIMIT,
-            "source": "fixture:official_routes_30",
         },
 
         # C-21 + M-36. 계약 필드는 하나도 골라 담지 않되(그래야 asof·verification·
@@ -290,7 +252,7 @@ def build_ds_s1() -> dict:
             "data": "processed/v2",
             "contract": CONTRACT_VERSION,
         },
-    }
+    })
 
 
 # --- M-32. 시설 상태로 후보가 줄어드는 흐름 ---------------------------------
@@ -325,17 +287,11 @@ def _evacuate_base() -> tuple[dict, dict]:
     이 값은 유지된다(M-15) - 두 픽스처가 보여주려는 것이 정확히 그것이다.
     """
     risk = load(FIXTURES / "risk_S3_peak.json")
-    area = apply_area_risk(risk)
-    prob = area["risk_probability"]
+    apply_area_risk(risk)  # risk 블록에 area_risk 를 채운다. 반환값은 쓰지 않는다.
 
     destinations = load(ROOT / "contracts" / "destinations.json")
     destination = next(p for p in destinations["points"] if p["id"] == "GN-003")
     dest = {k: destination[k] for k in ("id", "label", "lat", "lon")}
-
-    rain = next(
-        (d["value"] for d in risk.get("drivers", []) if d["feature"] == "rain_past_60m_mm"),
-        None,
-    )
 
     response = {
         "contract_version": CONTRACT_VERSION,
@@ -349,14 +305,8 @@ def _evacuate_base() -> tuple[dict, dict]:
         },
         "risk": risk,
         "decision": {
-            "_stub": "우선순위 6(AI HIGH + 실외). services/decision 구현 전 손으로 적은 값이다.",
-            "primary_action": "EVACUATE",
-            "action": "EVACUATE",
-            "route_postprocess_applied": False,
-            "service_risk_level": "DANGER" if rain and rain >= 40.0 else "CAUTION",
-            "needs_route": True,
+            # 행동·등급·근거는 finish() 가 채운다. 여기 적는 것은 **입력**뿐이다.
             "next_check_at": None,
-            "reason_code": "AI_AREA_HIGH",
             "user_state": {
                 "context": "OUTDOOR",
                 "trapped": False,
@@ -364,22 +314,6 @@ def _evacuate_base() -> tuple[dict, dict]:
                 "profiles": [],
                 "destination": dest,
             },
-            "reasons": [
-                {
-                    "code": "AI_AREA_HIGH",
-                    "text": f"30분 뒤 지역 고수위 위험이 높게 예측됐습니다 (지역값 {prob}).",
-                    "value": prob,
-                    "threshold": area_risk.AREA_THRESHOLD,
-                    "basis": "AI_PREDICTION",
-                },
-                {
-                    "code": "RAIN_60M_OVER_TH02",
-                    "text": "60분 누적 강우가 팀 기준값을 넘었습니다.",
-                    "value": rain,
-                    "threshold": 40.0,
-                    "basis": "TEAM_RULE",
-                },
-            ],
             "policy_version": POLICY_VERSION,
         },
         "official": official_at(build_clock(risk)["event_time"]),
@@ -412,10 +346,10 @@ def build_ds_s7() -> dict:
     )
     response["_risk_source"] = "contracts/fixtures/risk_S3_peak.json (RF-S3) — 실제 모델 출력"
     response["_stub"] = (
-        "decision·route 블록은 STUB 이고 시설 상태는 합성값이다(M-24 DEMO_FIXTURE). "
-        "시설상태 연동이 아니며 저장소에 대피시설 원자료가 없다."
+        "route 블록과 시설 상태가 합성값이다(M-24 DEMO_FIXTURE). 시설상태 연동이 "
+        "아니며 저장소에 대피시설 원자료가 없다. decision 은 엔진이 채운 값이다."
     )
-    response["route"] = {
+    fixture_route = {
         "_stub": "services/route 미구현. 시설 상태는 합성값이다.",
         "status": "FALLBACK_CANDIDATE",
         "route_verified": False,
@@ -456,7 +390,7 @@ def build_ds_s7() -> dict:
         "limit": ROUTE_LIMIT,
         "source": "fixture:demo_shelter_flow (합성값)",
     }
-    return response
+    return finish(response, fixture_route)
 
 
 def build_ds_s8() -> dict:
@@ -472,23 +406,14 @@ def build_ds_s8() -> dict:
     )
     response["_risk_source"] = "contracts/fixtures/risk_S3_peak.json (RF-S3) — 실제 모델 출력"
     response["_stub"] = (
-        "decision·route 블록은 STUB 이고 시설 상태는 합성값이다(M-24 DEMO_FIXTURE)."
+        "route 블록과 시설 상태가 합성값이다(M-24 DEMO_FIXTURE). "
+        "decision 은 엔진이 채운 값이다 — `NO_SAFE_POINT` 유지는 M-15 규칙이라 "
+        "여기서 손으로 적지 않아도 apply() 가 같은 결과를 낸다."
     )
-    response["decision"]["reason_code"] = "ROUTE_NO_SAFE_POINT"
-    response["decision"]["reasons"] = [
-        response["decision"]["reasons"][0],
-        {
-            "code": "ROUTE_NO_SAFE_POINT",
-            "text": "안내할 수 있는 안전거점이 없습니다.",
-            "value": None,
-            "threshold": None,
-            "basis": "TEAM_RULE",
-        },
-    ]
     response["notice"]["route_limit"] = (
         "안내할 수 있는 안전거점이 없습니다. 119 에 연락해 상황을 알리세요."
     )
-    response["route"] = {
+    fixture_route = {
         "_stub": "services/route 미구현. 시설 상태는 합성값이다.",
         "status": "NO_SAFE_POINT",
         "route_verified": False,
@@ -533,7 +458,7 @@ def build_ds_s8() -> dict:
         "limit": ROUTE_LIMIT,
         "source": "fixture:demo_shelter_flow (합성값)",
     }
-    return response
+    return finish(response, fixture_route)
 
 
 # --- M-16. 목적지가 막혔을 때 --------------------------------------------------
@@ -553,8 +478,7 @@ def build_ds_s6() -> dict:
     위험해지지는 않는다는 것이 이 시나리오가 보여주려는 것이다.
     """
     risk = load(FIXTURES / "risk_S2_rising.json")
-    area = apply_area_risk(risk)
-    prob = area["risk_probability"]
+    apply_area_risk(risk)  # risk 블록에 area_risk 를 채운다. 반환값은 쓰지 않는다.
     clock = build_clock(risk)
 
     official = official_at(clock["event_time"], OFFICIAL_DEMO_BLOCKED)
@@ -566,11 +490,12 @@ def build_ds_s6() -> dict:
     destination = next(p for p in destinations["points"] if p["id"] in blocked_ids)
     dest = {k: destination[k] for k in ("id", "label", "lat", "lon")}
 
-    # 문구를 손으로 옮겨 적지 않는다. 확정 규칙의 단일 출처는 postprocess 다 —
-    # 두 곳에 적으면 회의 확정문을 고칠 때 한쪽만 바뀐다.
-    code, text, basis = CONFIRMED_HOLDS[(Action.MOVE, RouteStatus.DESTINATION_BLOCKED)]
+    # `notice.route_limit` 에 쓸 확정 문구. 행동·근거는 엔진이 내지만 안내 문구는
+    # 응답의 입력이므로 여기서 읽는다. 단일 출처는 postprocess 다 — 손으로 옮겨
+    # 적으면 회의 확정문을 고칠 때 한쪽만 바뀐다.
+    _code, text, _basis = CONFIRMED_HOLDS[(Action.MOVE, RouteStatus.DESTINATION_BLOCKED)]
 
-    return {
+    return finish({
         "_scenario": "DS-S6",
         "_why_this_moment": (
             "M-16. 사용자가 고른 목적지가 이 시각에 공식 통제 구간에 들어 있다. "
@@ -580,9 +505,13 @@ def build_ds_s6() -> dict:
             "추정하지 않는다(O-07)."
         ),
         "_risk_source": "contracts/fixtures/risk_S2_rising.json (RF-S2) — 실제 모델 출력",
+        "_engine": (
+            "decision·route 는 services/pipeline.apply_engine() 이 채운 값이다. "
+            "손으로 적은 값이 아니다."
+        ),
         "_stub": (
-            "decision·route 블록은 STUB 이고 공식정보는 시연용 합성값이다"
-            "(M-24 DEMO_FIXTURE). 실제 확인된 통제로는 이 화면이 만들어지지 않는다."
+            "공식정보가 시연용 합성값이다(M-24 DEMO_FIXTURE). "
+            "실제 확인된 통제로는 이 화면이 만들어지지 않는다."
         ),
 
         "contract_version": CONTRACT_VERSION,
@@ -600,15 +529,8 @@ def build_ds_s6() -> dict:
         "risk": risk,
 
         "decision": {
-            "_stub": "우선순위 10(그 외) 기본값 + M-16 유지. services/decision 구현 전 손으로 적은 값이다.",
-            "primary_action": "MOVE",
-            "action": "MOVE",
-            # 유지는 '적용했다'가 아니다. 행동이 바뀌지 않았으므로 False 다(RT-10).
-            "route_postprocess_applied": False,
-            "service_risk_level": "SAFE",
-            "needs_route": True,
+            # 행동·등급·근거는 finish() 가 채운다. 여기 적는 것은 **입력**뿐이다.
             "next_check_at": "2022-08-08T12:40:00+09:00",
-            "reason_code": code,
             "user_state": {
                 "context": "OUTDOOR",
                 "trapped": False,
@@ -616,43 +538,7 @@ def build_ds_s6() -> dict:
                 "profiles": [],
                 "destination": dest,
             },
-            "reasons": [
-                {
-                    "code": "AI_AREA_LOW",
-                    "text": f"30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 {prob}).",
-                    "value": prob,
-                    "threshold": area_risk.AREA_THRESHOLD,
-                    "basis": "AI_PREDICTION",
-                },
-                {
-                    "code": code,
-                    "text": text,
-                    "value": None,
-                    "threshold": None,
-                    "basis": basis.value,
-                },
-            ],
             "policy_version": POLICY_VERSION,
-        },
-
-        "route": {
-            "_stub": "services/route 미구현. 통제 값은 시연용 합성값이다.",
-            "status": "DESTINATION_BLOCKED",
-            "route_verified": False,
-            "route_target": "USER_DESTINATION",
-            # M-16. 경로안내를 중단한다. 목적지가 막힌 채로 후보를 그리면
-            # 화면이 '그래도 이쪽으로 가라'로 읽힌다.
-            "target": None,
-            "route_attempted": False,
-            "no_safe_route": None,
-            "distance_m": None,
-            "eta_sec": None,
-            "detour_ratio": None,
-            "candidates": [],
-            "hazards": [],
-            "profile_applied": [],
-            "limit": ROUTE_LIMIT,
-            "source": "fixture:demo_destination_blocked (합성값)",
         },
 
         "official": official,
@@ -669,7 +555,7 @@ def build_ds_s6() -> dict:
             "data": "processed/v2",
             "contract": CONTRACT_VERSION,
         },
-    }
+    })
 
 
 # --- P1-1. 고립 신고 -> EMERGENCY ------------------------------------------
@@ -702,7 +588,7 @@ def build_ds_s4() -> dict:
 
     hazard_signs = ["WATER_INFLOW"]
 
-    return {
+    return finish({
         "_scenario": "DS-S4",
         "_why_this_moment": (
             "지하공간에서 고립을 신고했다. 우선순위 1 이 나머지 아홉 규칙을 모두 "
@@ -710,8 +596,9 @@ def build_ds_s4() -> dict:
         ),
         "_risk_source": "contracts/fixtures/risk_S3_peak.json (RF-S3) — 실제 모델 출력",
         "_engine": (
-            "decision·route 는 손으로 지어낸 값이 아니라 decide()/apply()/"
-            "DesignatedPointRouteProvider 가 이 입력에서 내는 값을 옮긴 것이다."
+            "decision·route 는 services/pipeline.apply_engine() 이 채운 값이다. "
+            "예전에는 엔진 출력을 손으로 옮겨 적었는데, 옮겨 적는 한 언젠가는 "
+            "어긋난다 — 이제 생성기가 그 함수를 직접 부른다."
         ),
 
         "contract_version": CONTRACT_VERSION,
@@ -729,17 +616,9 @@ def build_ds_s4() -> dict:
         "risk": risk,
 
         "decision": {
-            "primary_action": "EMERGENCY",
-            "action": "EMERGENCY",
-            "route_postprocess_applied": False,
-            # C-23 / F-02. 고립 신고는 SEVERE 를 만들 수 있는 직접 신호 셋 중 하나다.
-            # AI 확률로는 SEVERE 에 닿지 못한다.
-            "service_risk_level": "SEVERE",
-            # EMERGENCY 는 NEEDS_ROUTE 밖이다. 손으로 정한 값이 아니라 파생값이다.
-            "needs_route": False,
-            # 재확인 시각을 두지 않는다. 이 화면에서 할 일은 119 이지 재판단이 아니다.
+            # 행동·등급·근거는 finish() 가 채운다. 여기 적는 것은 **입력**뿐이다.
+            # 재확인 시각을 두지 않는다 — 이 화면에서 할 일은 119 이지 재판단이 아니다.
             "next_check_at": None,
-            "reason_code": "TRAPPED_REPORTED",
             "user_state": {
                 "context": "UNDERGROUND",
                 "trapped": True,
@@ -748,36 +627,7 @@ def build_ds_s4() -> dict:
                 # F-19. EMERGENCY 가 쓰지 않아도 목적지는 필수 필드다.
                 "destination": dest,
             },
-            "reasons": [
-                {
-                    "code": "TRAPPED_REPORTED",
-                    "text": "고립 상태로 신고됐습니다.",
-                    "value": None,
-                    "threshold": None,
-                    "basis": "TEAM_RULE",
-                },
-                {
-                    "code": "UNDERGROUND_HAZARD_SIGN",
-                    "text": "지하공간에서 현장 위험 징후가 신고됐습니다.",
-                    "value": ", ".join(hazard_signs),
-                    "threshold": None,
-                    "basis": "TEAM_RULE",
-                },
-            ],
             "policy_version": POLICY_VERSION,
-        },
-
-        # 계약 allOf — 경로가 필요 없는 행동은 ③을 호출하지 않는다.
-        # 형태를 손으로 짓지 않고 services/route/interface.not_required() 가
-        # 만드는 것과 같게 둔다. 두 곳이 갈라지면 배선 뒤 route 블록이 바뀐다.
-        "route": {
-            "status": "NOT_REQUIRED",
-            "route_verified": False,
-            "route_target": None,
-            "target": None,
-            "route_attempted": False,
-            "no_safe_route": None,
-            "limit": "경로 탐색이 필요하지 않은 행동입니다.",
         },
 
         "official": official_at(build_clock(risk)["event_time"]),
@@ -794,7 +644,7 @@ def build_ds_s4() -> dict:
             "data": "processed/v2",
             "contract": CONTRACT_VERSION,
         },
-    }
+    })
 
 
 # --- 반드시 거부되어야 하는 조합 -------------------------------------------

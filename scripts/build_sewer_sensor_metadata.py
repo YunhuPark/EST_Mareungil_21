@@ -65,7 +65,20 @@ def atomic_json_dump(data: Any, path: Path) -> None:
     temp.replace(path)
 
 
-def request_json(session: requests.Session, url: str, retries: int = 4) -> dict[str, Any]:
+def redact_key(text: str, key: str) -> str:
+    """문자열에서 API 키를 지운다.
+
+    서울 열린데이터광장은 키를 **URL 경로에** 싣게 한다(`.../{key}/json/...`).
+    그래서 requests 예외 메시지에는 키가 통째로 들어 있고, 그것을 그대로
+    체이닝하면 트레이스백에 키가 찍힌다 — 그 로그를 팀에 붙여넣는 순간 키가
+    샌다. 실패 원인은 남기되 키만 지운다.
+    """
+    return text.replace(key, "<REDACTED>") if key else text
+
+
+def request_json(
+    session: requests.Session, url: str, retries: int = 4, key: str = ""
+) -> dict[str, Any]:
     last_error: Exception | None = None
     for attempt in range(retries):
         try:
@@ -75,7 +88,11 @@ def request_json(session: requests.Session, url: str, retries: int = 4) -> dict[
         except Exception as exc:  # network/API retry boundary
             last_error = exc
             time.sleep(1.5 * (attempt + 1))
-    raise RuntimeError("서울 Open API 호출 실패") from last_error
+    # `from last_error` 를 쓰지 않는다. 예외를 체이닝하면 원본 메시지(= 키가 박힌
+    # URL)가 트레이스백에 그대로 따라 붙는다. 원인은 문자열로 옮겨 적고 키만 지운다.
+    raise RuntimeError(
+        f"서울 Open API 호출 실패: {redact_key(f'{type(last_error).__name__}: {last_error}', key)}"
+    ) from None
 
 
 def extract_api_block(payload: dict[str, Any]) -> dict[str, Any]:
@@ -102,7 +119,7 @@ def collect_locations() -> None:
             first_url = SEOUL_API_TEMPLATE.format(
                 key=key, start=1, end=1000, district=district_code, hour=hour
             )
-            payload = request_json(session, first_url)
+            payload = request_json(session, first_url, key=key)
             block = extract_api_block(payload)
             total = int(block.get("list_total_count", 0))
             page_count = max(1, math.ceil(total / 1000))
@@ -118,7 +135,7 @@ def collect_locations() -> None:
                     page_url = SEOUL_API_TEMPLATE.format(
                         key=key, start=start, end=end, district=district_code, hour=hour
                     )
-                    page_payload = request_json(session, page_url)
+                    page_payload = request_json(session, page_url, key=key)
                     page_block = extract_api_block(page_payload)
                     time.sleep(0.15)
 
