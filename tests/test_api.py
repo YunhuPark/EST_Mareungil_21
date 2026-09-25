@@ -292,3 +292,77 @@ def test_이유_목록은_경로_사유를_붙여도_상한을_지킨다(client)
     for scenario in ("DS-S1", "DS-S4", "DS-S6", "DS-S7", "DS-S8"):
         reasons = client.get("/api/assess", params={"scenario": scenario}).json()["decision"]["reasons"]
         assert 1 <= len(reasons) <= 3, scenario
+
+
+# --- 입력 오류를 서버 오류로 보고하지 않는다 --------------------------------
+
+
+def test_프로필_중복은_400도_500도_아니다(client):
+    """`?profile=ELDERLY&profile=ELDERLY` 가 500 을 내던 자리.
+
+    계약은 `profiles` 를 집합으로 본다(`uniqueItems`). 중복을 그대로 흘리면 응답
+    직전 계약 검증이 터지는데, 그건 **사용자 입력 오류를 서버 오류로 보고하는
+    것**이다 — `test_MVP_밖_프로필은_거부한다` 가 enum 밖 값에 대해 이미 막아둔
+    바로 그 실패 방식이고, 중복만 빠져 있었다.
+
+    고른 값 자체는 유효하므로 거절하지 않는다. 중복만 걷어내고 통과시킨다.
+    """
+    res = client.get("/api/assess", params={"profile": ["ELDERLY", "ELDERLY"]})
+    assert res.status_code == 200, res.text
+
+    body = res.json()
+    assert body["decision"]["user_state"]["profiles"] == ["ELDERLY"]
+    assert body["route"].get("profile_applied") == ["ELDERLY"]
+
+
+def test_프로필_중복_제거가_고른_순서를_지킨다(client):
+    """중복만 걷어내고 순서는 사용자가 고른 대로 둔다."""
+    body = client.get(
+        "/api/assess",
+        params={"profile": ["WITH_CHILD", "ELDERLY", "WITH_CHILD"]},
+    ).json()
+    assert body["decision"]["user_state"]["profiles"] == ["WITH_CHILD", "ELDERLY"]
+
+
+def test_오류_메시지가_긴_입력을_되비추지_않는다(client):
+    """5만 자를 보내면 5만 자가 돌아오던 자리.
+
+    무엇을 잘못 보냈는지 알려주는 데 64자면 충분하다. 서버가 남의 입력을 그대로
+    증폭해 주지 않는다.
+    """
+    res = client.get("/api/assess", params={"scenario": "A" * 50_000})
+    assert res.status_code == 404
+    assert len(res.text) < 1_000, "오류 응답이 입력 길이를 따라 커진다"
+    assert "총 50000자" in res.json()["detail"]
+
+
+def test_없는_목적지_오류도_길이를_자른다(client):
+    res = client.get("/api/assess", params={"destination": "B" * 50_000})
+    assert res.status_code == 400
+    assert len(res.text) < 1_000
+
+
+# --- 응답이 내부 구조와 프레임워크를 알려주지 않는다 ------------------------
+
+
+def test_API_응답에_방어_헤더가_붙는다(client):
+    """JSON 밖에 돌려주지 않는 API 다. 브라우저가 그것을 HTML·스크립트로
+    재해석하거나 프레임에 싣게 둘 이유가 없다."""
+    headers = client.get("/api/health").headers
+    assert headers["X-Content-Type-Options"] == "nosniff"
+    assert headers["X-Frame-Options"] == "DENY"
+    assert headers["Referrer-Policy"] == "no-referrer"
+    assert "frame-ancestors 'none'" in headers["Content-Security-Policy"]
+
+
+def test_허용_출처_기본값에_와일드카드가_없다():
+    """`allow_origins=["*"]` 을 코드에 박아 둔 채 배포된 적이 있다.
+
+    허용 출처는 코드가 아니라 배포 설정(`MAREUNGIL_CORS_ORIGINS`)이 정한다.
+    전부 열어야 하면 그 환경변수에 `*` 를 **적어서** 연다 — 기본값에 숨어 있는
+    것과 배포 설정에 적혀 있는 것은 다른 상태다.
+    """
+    from api.main import CORS_ORIGINS
+
+    assert "*" not in CORS_ORIGINS
+    assert all(o.startswith(("http://127.0.0.1", "http://localhost")) for o in CORS_ORIGINS)

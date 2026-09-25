@@ -98,11 +98,54 @@ cd mareungil
 
 - **백엔드 (Render)**
   - Render 대시보드에서 **New > Blueprint** 로 저장소를 연결하면 루트의 `render.yaml`을 읽어 자동 배포된다.
-  - 수동 설정 시: Build Command `pip install -r requirements-dev.txt`, Start Command `uvicorn api.main:app --host 0.0.0.0 --port 10000`
+  - 수동 설정 시: Build Command `pip install -r requirements-dev.txt`, Start Command `uvicorn api.main:app --host 0.0.0.0 --port 10000 --no-server-header --no-proxy-headers`
+  - ⚠️ **`MAREUNGIL_CORS_ORIGINS` 를 반드시 채운다.** 프론트 도메인을 적지 않으면
+    배포된 화면이 CORS 에 막혀 API 를 부르지 못한다. `render.yaml` 이 `sync: false`
+    로 선언해 두었으므로 Blueprint 배포 중에 값을 물어본다.
 - **프론트엔드 (Vercel)**
   - Vercel 대시보드에서 **Add New > Project** 로 저장소를 연결한다.
   - ⚠️ **Root Directory**를 반드시 `web`으로 설정한다.
   - **Environment Variables**에 `VITE_API_BASE` 키로 백엔드의 URL(`https://*.onrender.com`)을 추가하고 배포한다.
+
+#### 배포 환경변수
+
+로컬 개발은 전부 기본값으로 돌아간다. 아래는 **배포에서만** 손대는 값이다.
+
+| 변수 | 기본값 | 배포에서 무엇을 하는가 |
+|---|---|---|
+| `MAREUNGIL_ENV` | `development` | `production` 이면 `/docs`·`/redoc`·`/openapi.json` 을 닫는다 |
+| `MAREUNGIL_CORS_ORIGINS` | 로컬 개발 주소만 | 브라우저에서 API 를 부를 수 있는 출처(쉼표 구분). 전부 열려면 `*` 하나만 적어 **명시적으로** 연다 |
+| `MAREUNGIL_CORS_ORIGIN_REGEX` | 없음 | Vercel 프리뷰처럼 도메인이 매번 바뀔 때만 함께 쓴다 |
+| `MAREUNGIL_RATE_LIMIT` | `60` | IP 당 허용 요청 수. `0` 이면 빈도 제한을 끈다 |
+| `MAREUNGIL_RATE_WINDOW_SEC` | `60` | 위 횟수를 세는 창(초) |
+| `MAREUNGIL_TRUSTED_PROXY_HOPS` | `0` | 앞에 둔 **신뢰하는** 프록시 단수. Render 는 `1` |
+
+빈도 제한은 의존성 없이 인메모리 토큰 버킷으로 돈다([`api/ratelimit.py`](api/ratelimit.py)).
+상태가 프로세스 안에만 있으므로 워커를 여럿 띄우면 워커마다 따로 세고 재시작하면
+초기화된다 — 정확한 회계가 아니라 폭주 차단이 목적이라 그래도 된다. IP 를 바꿔 가며
+들어오는 분산 공격은 막지 못하며, 그건 앞단(CDN·WAF)의 일이다.
+
+`MAREUNGIL_TRUSTED_PROXY_HOPS` 는 **틀리면 양쪽으로 다 아프다.** 프록시 뒤인데 `0`
+이면 모든 사용자가 프록시 IP 하나로 뭉쳐 서로의 한도를 갉아먹고, 프록시가 없는데
+`1` 이면 클라이언트가 `X-Forwarded-For` 를 적어 보내는 것만으로 한도를 우회한다.
+
+⚠️ **uvicorn 은 반드시 `--no-proxy-headers` 로 띄운다.** 이 옵션은 기본이 *켜짐*
+이고, 켜져 있으면 uvicorn 이 `X-Forwarded-For` 의 **왼쪽 끝**(클라이언트가 위조해
+넣는 자리)으로 `request.client` 를 덮어쓴다. 그러면 위 설정을 `0` 으로 둬도 이미
+덮어써진 값을 소켓 주소인 줄 알고 쓰게 되어 한도가 헤더 한 줄로 뚫린다. 실측:
+
+| uvicorn 옵션 | 한도 소진 후 위조 XFF 4회 |
+|---|---|
+| 기본(`--proxy-headers` 켜짐) | `[200, 200, 200, 200]` — 우회됨 |
+| `--no-proxy-headers` | `[429, 429, 429, 429]` — 막힘 |
+
+앞단을 믿을지는 `MAREUNGIL_TRUSTED_PROXY_HOPS` **한 곳에서만** 정한다.
+`render.yaml`·`make.ps1`·`make.sh` 가 이미 플래그를 들고 있고,
+`tests/test_ratelimit.py` 가 빠지지 않았는지 검사한다.
+
+기본값을 로컬 주소로 둔 이유는, 예전에 코드가 `allow_origins=["*"]` 를 박아 두고
+바로 옆에 "데모는 로컬 전용"이라고 적어 둔 채 배포된 적이 있기 때문이다. 허용 출처는
+코드가 아니라 배포 설정이 정하는 값이고, 열려면 열려 있다고 적혀 있어야 한다.
 
 ### 명령 전체
 
@@ -147,12 +190,14 @@ Windows·macOS 를 섞어 쓰므로, **한쪽에서만 터지는** 문제를 미
 | 문서 | 내용 |
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | **저장소 작업 규칙.** enum, 금칙어, 모듈 의존 방향, 계약 변경 절차 |
-| [docs/HACKATHON_11H_RUNBOOK.md](docs/HACKATHON_11H_RUNBOOK.md) | 11시간 실행계획과 담당 배치 |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | 기술 선택과 **미확정(OPEN) 목록** |
-| [docs/GITHUB_SETUP.md](docs/GITHUB_SETUP.md) | 저장소 생성과 5인 공유 |
-| [docs/REPOSITORY_AUDIT.md](docs/REPOSITORY_AUDIT.md) | 구현됨 / STUB / 없음 구분 |
-| [docs/HACKATHON_CHECKLIST.md](docs/HACKATHON_CHECKLIST.md) | 게이트별·데모 직전 체크리스트 |
-| [docs/README.md](docs/README.md) | 설계·요구사항 문서 세트 |
+| `HACKATHON_11H_RUNBOOK.md` | 11시간 실행계획과 담당 배치 |
+| `DECISIONS.md` | 기술 선택과 **미확정(OPEN) 목록** |
+| `GITHUB_SETUP.md` | 저장소 생성과 5인 공유 |
+| `REPOSITORY_AUDIT.md` | 구현됨 / STUB / 없음 구분 |
+| `HACKATHON_CHECKLIST.md` | 게이트별·데모 직전 체크리스트 |
+
+> **이 문서들은 저장소에 없다.** 공개 저장소라 내부 문서를 두지 않기로 했다(v1.0.0).
+> 필요하면 저장소 소유자에게 받는다.
 
 ---
 
@@ -267,7 +312,6 @@ scripts/              데이터·모델 파이프라인 (기존 자산)
    ├─ features.py     피처·타깃·고수위 임계
    ├─ evaluate.py     국면 분해 평가 (상승전이 중심)
    └─ policy.py       경보 임계정책, 경보해제
-docs/                 설계·요구사항·실행계획·결정 기록
 ```
 
 의존은 한 방향으로만 흐른다. 자세한 규칙은 [CLAUDE.md](CLAUDE.md) 9절.

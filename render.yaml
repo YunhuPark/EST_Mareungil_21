@@ -3,7 +3,34 @@ services:
     name: mareungil-api
     env: python
     buildCommand: pip install -r requirements-dev.txt
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port 10000
+    # --no-server-header : 기본값은 `server: uvicorn` 을 붙여 프레임워크를 알려준다.
+    #                      공격자 정찰의 첫 줄이므로 지운다.
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port 10000 --no-server-header --no-proxy-headers
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      # 대화형 API 문서(/docs·/redoc·/openapi.json)를 닫는다.
+      - key: MAREUNGIL_ENV
+        value: production
+      # 브라우저에서 이 API 를 부를 수 있는 출처. **반드시 채워야 한다.**
+      # 비워 두면 로컬 개발 주소만 허용되어 배포된 프론트가 CORS 로 막힌다.
+      #
+      #     MAREUNGIL_CORS_ORIGINS=https://<프론트-도메인>.vercel.app
+      #
+      # sync: false 는 값을 저장소가 아니라 Render 대시보드에서 받겠다는 뜻이다.
+      - key: MAREUNGIL_CORS_ORIGINS
+        sync: false
+      # Vercel 프리뷰 배포처럼 도메인이 매번 바뀌는 경우에만 정규식으로 함께 허용한다.
+      #
+      #     MAREUNGIL_CORS_ORIGIN_REGEX=https://mareungil-.*\.vercel\.app
+      - key: MAREUNGIL_CORS_ORIGIN_REGEX
+        sync: false
+      # Render 는 프록시 뒤에 앱을 둔다. 이 값이 0 이면 모든 요청이 프록시 IP 하나로
+      # 뭉쳐 서로의 빈도 한도를 갉아먹는다. 1 이면 프록시가 붙인 오른쪽 끝 주소를 쓴다.
+      - key: MAREUNGIL_TRUSTED_PROXY_HOPS
+        value: 1
+      # 빈도 제한(IP 당 60회/60초). 무료 티어 한 대를 혼자 갈아 넣는 요청을 막는다.
+      # 끄려면 0. 기본값이 이미 60 이라 적지 않아도 되지만, 배포에서 무엇이 걸려
+      # 있는지 여기서 읽히는 편이 낫다.
+      - key: MAREUNGIL_RATE_LIMIT
+        value: 60

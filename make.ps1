@@ -263,7 +263,7 @@ switch ($Task) {
         $log = New-LogFile 'api'
         Write-Host "  로그: $log" -ForegroundColor DarkGray
         # -u : 출력이 파이프로 가면 파이썬이 버퍼링해서 로그가 뭉텅이로 늦게 나온다.
-        Invoke-Tee { Push-Location $Root; try { & $Py -u -m uvicorn api.main:app --reload --host $apiHost --port $apiPort } finally { Pop-Location } } $log
+        Invoke-Tee { Push-Location $Root; try { & $Py -u -m uvicorn api.main:app --reload --no-server-header --no-proxy-headers --host $apiHost --port $apiPort } finally { Pop-Location } } $log
     }
 
     'web' {

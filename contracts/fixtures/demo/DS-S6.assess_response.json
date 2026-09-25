@@ -2,9 +2,10 @@
   "_scenario": "DS-S6",
   "_why_this_moment": "M-16. 사용자가 고른 목적지가 이 시각에 공식 통제 구간에 들어 있다. 행동은 MOVE 그대로이고 바뀌는 것은 경로안내뿐이다 — 막힌 것은 목적지이지 이동 자체가 아니며, 그 동네가 위험한지는 우선순위 6~9 에서 이미 판정됐다. 차단 근거는 blocks_destination_ids 명시 지정 하나뿐이고 좌표 거리로 추정하지 않는다(O-07).",
   "_risk_source": "contracts/fixtures/risk_S2_rising.json (RF-S2) — 실제 모델 출력",
-  "_stub": "decision·route 블록은 STUB 이고 공식정보는 시연용 합성값이다(M-24 DEMO_FIXTURE). 실제 확인된 통제로는 이 화면이 만들어지지 않는다.",
+  "_engine": "decision·route 는 services/pipeline.apply_engine() 이 채운 값이다. 손으로 적은 값이 아니다.",
+  "_stub": "공식정보가 시연용 합성값이다(M-24 DEMO_FIXTURE). 실제 확인된 통제로는 이 화면이 만들어지지 않는다.",
   "contract_version": "v1",
-  "source_kind": "FIXTURE",
+  "source_kind": "LIVE_PIPELINE",
   "clock": {
     "mode": "REPLAY",
     "event_time": "2022-08-08T12:10:00+09:00",
@@ -976,14 +977,7 @@
     }
   },
   "decision": {
-    "_stub": "우선순위 10(그 외) 기본값 + M-16 유지. services/decision 구현 전 손으로 적은 값이다.",
-    "primary_action": "MOVE",
-    "action": "MOVE",
-    "route_postprocess_applied": false,
-    "service_risk_level": "SAFE",
-    "needs_route": true,
     "next_check_at": "2022-08-08T12:40:00+09:00",
-    "reason_code": "ROUTE_DESTINATION_BLOCKED",
     "user_state": {
       "context": "OUTDOOR",
       "trapped": false,
@@ -996,13 +990,20 @@
         "lon": 127.0365
       }
     },
+    "policy_version": "policy-0.1.0-draft",
+    "primary_action": "MOVE",
+    "action": "MOVE",
+    "route_postprocess_applied": false,
+    "service_risk_level": "SAFE",
+    "needs_route": true,
+    "reason_code": "ROUTE_DESTINATION_BLOCKED",
     "reasons": [
       {
-        "code": "AI_AREA_LOW",
-        "text": "30분 뒤 지역 고수위 위험이 낮게 예측됐습니다 (지역값 0.4).",
-        "value": 0.4,
-        "threshold": 0.5,
-        "basis": "AI_PREDICTION"
+        "code": "NO_TRIGGER",
+        "text": "행동을 바꿀 조건이 확인되지 않았습니다.",
+        "value": null,
+        "threshold": null,
+        "basis": "TEAM_RULE"
       },
       {
         "code": "ROUTE_DESTINATION_BLOCKED",
@@ -1011,25 +1012,7 @@
         "threshold": null,
         "basis": "OFFICIAL_GUIDANCE"
       }
-    ],
-    "policy_version": "policy-0.1.0-draft"
-  },
-  "route": {
-    "_stub": "services/route 미구현. 통제 값은 시연용 합성값이다.",
-    "status": "DESTINATION_BLOCKED",
-    "route_verified": false,
-    "route_target": "USER_DESTINATION",
-    "target": null,
-    "route_attempted": false,
-    "no_safe_route": null,
-    "distance_m": null,
-    "eta_sec": null,
-    "detour_ratio": null,
-    "candidates": [],
-    "hazards": [],
-    "profile_applied": [],
-    "limit": "공식 대피경로 기준 · 상대적으로 위험이 낮은 후보",
-    "source": "fixture:demo_destination_blocked (합성값)"
+    ]
   },
   "official": {
     "source": "fixture:demo_destination_blocked (합성값 — 실제 통제 기록이 아님)",
@@ -1079,5 +1062,14 @@
     "policy": "policy-0.1.0-draft",
     "data": "processed/v2",
     "contract": "v1"
+  },
+  "route": {
+    "status": "DESTINATION_BLOCKED",
+    "route_target": "USER_DESTINATION",
+    "target": null,
+    "route_attempted": false,
+    "no_safe_route": null,
+    "route_verified": false,
+    "limit": "공식 정보에 의해 명시적으로 차단된 목적지입니다."
   }
 }
